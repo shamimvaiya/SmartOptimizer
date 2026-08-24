@@ -1,0 +1,8 @@
+{
+  "name": "SmartOptimizer",
+  "description": "High-performance Android emulator optimizer, latency reducer, and interactive visual node macro studio (AIM/OPT Pro v3.0).",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,8 +1,0 @@
-{
-  "ActivePresetName": "FreeFire_Opt",
-  "EnableDarkTheme": true,
-  "AdbPath": "adb.exe",
-  "AutoStartDriver": false,
-  "DefaultHotkey": "HOME",
-  "StartMinimizedToOverlay": false
-}
