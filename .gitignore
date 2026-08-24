@@ -1,0 +1,44 @@
+# Visual Studio and VS Code user state
+.vs/
+.vscode/
+*.user
+*.suo
+*.userprefs
+
+# .NET build output and intermediate files
+[Bb]in/
+[Oo]bj/
+TestResults/
+*.userosscache
+*.sln.docstates
+
+# NuGet packages and generated assets
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# C++/WDK build output
+ipch/
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+*.tlog/
+*.lastbuildstate
+*.VC.db
+*.VC.VC.opendb
+
+# Native driver build products and signing material
+*.sys
+*.inf
+*.cat
+*.cer
+*.pfx
+
+# Logs and local machine files
+*.log
+*.tmp
+*.cache
+Thumbs.db
+desktop.ini

@@ -1,0 +1,99 @@
+================================================================================
+          SmartOptimizer (AIM/OPT) - সম্পূর্ণ প্রজেক্ট ব্লুপ্রিন্ট ও কারিগরি বিবরণ
+================================================================================
+Platform: .NET 8.0 Windows (WPF + Win32 Interop + OpenCvSharp + SharpDX DXGI + C++ Driver)
+Architecture: MVVM (CommunityToolkit.Mvvm) + Layered Subsystems + Event-Driven Engine
+
+--------------------------------------------------------------------------------
+১. প্রজেক্টের সাধারণ পরিচিতি (Project Overview)
+--------------------------------------------------------------------------------
+SmartOptimizer (AIM/OPT) হলো উইন্ডোজ অপারেটিং সিস্টেমে অ্যান্ড্রয়েড এমুলেটর 
+(BlueStacks, LDPlayer, NoxPlayer, MSI App Player, Gameloop, MEmu, MuMu) এর জন্য 
+একটি প্রো-লেভেলের পারফরম্যান্স অপটিমাইজেশন, অটোমেশন এবং ম্যাক্রো ইঞ্জিন সফটওয়্যার।
+
+মূল ৩টি স্তম্ভ:
+  ১. ল্যাগ ও ল্যাটেন্সি অপটিমাইজেশন (Process Priority, Core Affinity, RAM Trimming)
+  ২. অ্যান্ড্রয়েড ইন্টার্নাল টিউনিং (Auto ADB Hook, FPS 144Hz Unlock, Density/DPI Scaling)
+  ৩. ভিজ্যুয়াল নোড-বেসড ম্যাক্রো অটোমেশন (DXGI Screen Capture, OpenCV Vision, Virtual Driver/Win32)
+
+--------------------------------------------------------------------------------
+২. সিস্টেম আর্কিটেকচার ব্লুপ্রিন্ট (System Architecture)
+--------------------------------------------------------------------------------
+[ PRESENTATION LAYER (UI) ]
+  • MainWindow (WPF Dark Neon Cyberpunk UI)
+  • MainViewModel (MVVM State Management)
+  • NodeCanvas (Visual Flow Chart with Bézier Curve Wires)
+  • OverlayWindow (Hardware-accelerated Breathing Glow HUD)
+
+[ CORE SUBSYSTEMS LAYER ]
+  • BackgroundEngine (কেন্দ্রীয় কোঅর্ডিনেটর ও লাইভ সিপিইউ/র‍্যাম টেলিমেট্রি)
+  • EmulatorDetector (রেজিস্ট্রি স্ক্যান, প্রসেস ট্র্যাকার ও সিপিইউ কোর লকার)
+  • ADBManager (লোকাল ADB অটো-ডিসকভারি, পোর্ট স্ক্যান ও এফপিএস বুস্টার)
+  • ExecutionManager (নোড গ্রাফ এক্সিকিউটর লুপ ও সাবগ্রাফ ডিসপ্যাচার)
+  • PresetManager (প্রোফাইল লোড/সেভ ও গ্লোবাল কনফিগারেশন ম্যানেজার)
+
+[ HARDWARE / OS / DRIVER LAYER ]
+  • ScreenCaptureEngine (DirectX 11 DXGI Desktop Duplication API + GDI Fallback)
+  • VisualProcessingEngine (OpenCV Mat, Color Range Masking ও Centroid Calculation)
+  • DriverInterface (Kernel IOCTL Hook \Device\SmartOptimizer + Win32 Fallback)
+
+--------------------------------------------------------------------------------
+৩. মূল ফাইল ও মডিউলসমূহের কাজ (Key Components & Functions)
+--------------------------------------------------------------------------------
+
+1. BackgroundEngine.cs:
+   - পুরো সিস্টেমের হার্ট। BackgroundWorker লুপে ১ সেকেন্ড পর পর এমুলেটর ও ADB সিঙ্ক চেক করে।
+   - GetSystemTimes API কল করে রিয়েল-টাইম নির্ভুল CPU usage (%) এবং প্রসেস র‍্যাম ক্যালকুলেট করে।
+
+2. EmulatorDetector.cs:
+   - Windows Registry (HKLM/HKCU 32/64 bit) স্ক্যান করে ইনস্টল করা এমুলেটর ও তাদের পাথ বের করে।
+   - EnumWindows ও GetWindowRect দিয়ে এমুলেটরের উইন্ডো সাইজ ও পজিশন ট্র্যাক করে।
+   - SetProcessPriority দিয়ে উইন্ডোজ শিডিউলারে High/RealTime প্রায়োরিটি ইনজেক্ট করে।
+   - SetProcessAffinity দিয়ে এমুলেটরকে নির্দিষ্ট পারফরম্যান্স সিপিইউ কোরে লক করে।
+   - EmptyWorkingSet (psapi.dll) দিয়ে এমুলেটরের অপ্রয়োজনীয় র‍্যাম ক্যাশ ফ্ল্যাশ করে।
+
+3. ADBManager.cs:
+   - এমুলেটরের ফোল্ডার থেকে HD-Adb.exe, nox_adb.exe, vbox_adb.exe অটোম্যাটিক খুঁজে নেয়।
+   - পোর্ট 5555, 5554, 7555, 21503, 62001 স্ক্যান করে স্বয়ংক্রিয়ভাবে কানেক্ট হয়।
+   - BoostFpsAsync দিয়ে অ্যান্ড্রয়েডের debug.sf.fps ও peak_refresh_rate ১৪৪ FPS-এ বুস্ট করে।
+   - wm size ও wm density দিয়ে ডিসপ্লে রেজোলিউশন ও ডিপিআই পরিবর্তন করে।
+   - input tap, swipe, keyevent এবং কাস্টম শেল কমান্ড পাঠাতে পারে।
+
+4. ScreenCaptureEngine.cs:
+   - SharpDX লাইব্রেরি ব্যবহার করে DirectX 11 DXGI Desktop Duplication API দিয়ে জিপিইউ 
+     ফ্রেমবাফার থেকে আল্ট্রা-লো ল্যাটেন্সিতে সরাসরি ফ্রেম ক্যাপচার করে।
+   - ব্যর্থ হলে স্বয়ংক্রিয়ভাবে GDI CopyFromScreen এবং LockBits ব্যবহার করে।
+
+5. VisualProcessingEngine.cs:
+   - OpenCvSharp4 ব্যবহার করে ক্যাপচার করা স্ক্রিনশটে কাঙ্ক্ষিত হেক্স/RGB কালার খোঁজে।
+   - Cv2.InRange ও Moments (M10/M00) দিয়ে টার্গেটের কেন্দ্রবিন্দু (X, Y) বের করে।
+
+6. DriverInterface.cs:
+   - কার্নেল মোডে \\.\SmartOptimizer ড্রাইভার দিয়ে মাউস মুভ পাঠায়।
+   - ড্রাইভার না থাকলে Win32 SetCursorPos, mouse_event এবং keybd_event ব্যবহার করে।
+
+7. ExecutionManager.cs:
+   - নোড ক্যানভাসের অ্যাকশন নোডগুলো (Search Color, Move Mouse, Click Mouse, Press Key, 
+     Delay, ADB Tap, ADB Shell) গ্রাফ ট্রাভার্সাল করে এক্সিকিউট করে।
+
+8. NodeCanvas.xaml / NodeCanvas.xaml.cs:
+   - আনরিয়েল ব্লুপ্রিন্টের মতো ইন্টারেক্টিভ ক্যানভাস।
+   - রাইট ক্লিকে নোড অ্যাড, বেজিয়ের কার্ভ দিয়ে কানেকশন, Ctrl+Wheel এ জুম, মিডল মাউসে প্যানিং।
+   - সাইডবার নোড ইন্সপেক্টরে অ্যাকশন ও প্যারামিটার এডিট করার ফুল কন্ট্রোল।
+
+9. OverlayWindow.xaml / OverlayWindow.xaml.cs:
+   - গেমের উপরে ভাসমান স্টিলথ HUD।
+   - RegisterHotKey দিয়ে গ্লোবাল হটকি (HOME, INSERT, F8 ইত্যাদি) হ্যান্ডেল করে।
+   - ৪ সেকেন্ড পর স্বয়ংক্রিয়ভাবে হাইড হয়ে যায়, মাউস হোভার করলে স্ক্রিনে থাকে।
+
+--------------------------------------------------------------------------------
+৪. এটি দিয়ে কি কি করা যায়? (Real-World Use Cases)
+--------------------------------------------------------------------------------
+1. Free Fire, PUBG Mobile, COD Mobile ইত্যাদির ল্যাগ সম্পূর্ণ দূর করা ও 144 FPS আনলক করা।
+2. কালার-বেসড পিক্সেল ট্রিগারবট ও অটো-ক্লিকার তৈরি করা।
+3. ফাস্ট গ্লু-ওয়াল (Fast Gloo Wall), কুইক সুইচ এবং কমপ্লেক্স কম্বো ম্যাক্রো তৈরি।
+4. একাধিক এমুলেটর এবং গেমের জন্য আলাদা আলাদা রেজোলিউশন ও ডিপিআই প্রোফাইল ম্যানেজ করা।
+
+================================================================================
+Status: Production Ready | Tested with .NET 8.0 Windows WPF
+================================================================================
