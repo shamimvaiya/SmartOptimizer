@@ -6,7 +6,7 @@ interface PresetModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (preset: PresetProfile) => Promise<void>;
-  basePreset: PresetProfile;
+  basePreset?: PresetProfile | null;
 }
 
 export const PresetModal: React.FC<PresetModalProps> = ({
@@ -24,15 +24,61 @@ export const PresetModal: React.FC<PresetModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name) return;
+    const cleanName = name.trim();
+    if (!cleanName) return;
     setLoading(true);
 
-    const newPreset: PresetProfile = {
-      ...JSON.parse(JSON.stringify(basePreset)),
+    const defaultBase: PresetProfile = basePreset || {
       id: `preset_${Date.now()}`,
-      name: name.replace(/\s+/g, '_'),
+      name: cleanName,
+      description: description || `Optimized profile for ${cleanName}`,
       targetGame: targetGame || 'Custom Game',
-      description: description || `Optimized profile for ${name}`,
+      emulator: {
+        processName: 'HD-Player.exe',
+        executablePath: 'C:\\Program Files\\BlueStacks_nxt\\HD-Player.exe',
+        priorityClass: 'High',
+        affinityMask: 255,
+        adbPort: 5555,
+        autoLaunch: true,
+      },
+      performance: {
+        targetFps: 144,
+        enableCpuAffinity: true,
+        enableRamOptimization: true,
+        monitorIntervalMs: 1000,
+        autoBoostFpsOnLaunch: true,
+      },
+      display: {
+        width: 1920,
+        height: 1080,
+        dpi: 240,
+        autoScaleResolution: true,
+      },
+      visualProcessing: {
+        captureRegionX: 860,
+        captureRegionY: 440,
+        captureRegionWidth: 200,
+        captureRegionHeight: 200,
+        colorTolerance: 15,
+        captureIntervalMs: 16,
+      },
+      overlay: {
+        toggleHotkey: 'HOME',
+        enableAutoHide: true,
+        autoHideDelaySec: 4,
+        transparency: 0.92,
+        showFps: true,
+        showSystemStats: true,
+      },
+      macroGraph: [],
+    };
+
+    const newPreset: PresetProfile = {
+      ...JSON.parse(JSON.stringify(defaultBase)),
+      id: `preset_${Date.now()}`,
+      name: cleanName,
+      targetGame: targetGame || 'Custom Game',
+      description: description || `Optimized profile for ${cleanName}`,
     };
 
     await onSave(newPreset);
@@ -60,11 +106,11 @@ export const PresetModal: React.FC<PresetModalProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="text-xs font-bold text-[#8892b0] uppercase">Profile Name</label>
+            <label className="text-xs font-bold text-[#8892b0] uppercase">Profile Name (Supports Space & Emojis)</label>
             <input
               type="text"
               required
-              placeholder="e.g. Apex_Mobile_Ultra"
+              placeholder="e.g. 🎯 Pro FreeFire 144 FPS / Apex Mobile"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full h-10 mt-1 px-3.5 rounded-xl bg-[#181824] text-white border border-[#2d2d3d] text-xs outline-none focus:border-[#39ff14]"

@@ -1,12 +1,23 @@
+export interface CustomActionDefinition {
+  id: string;
+  name: string;
+  category: 'Vision' | 'Input' | 'Loops' | 'Logic' | 'ADB' | 'Custom';
+  color: string;
+  iconName: string;
+  defaultParameters: string;
+  csharpScript: string;
+}
+
 export interface InstalledEmulatorInfo {
   id: string;
   name: string;
   executablePath: string;
   version: string;
-  type: 'BlueStacks' | 'LDPlayer' | 'NoxPlayer' | 'MSIAppPlayer' | 'Gameloop' | 'MEmu' | 'MuMu' | 'Custom';
+  type: string;
   status: 'Running' | 'Stopped' | 'Ready';
   pid?: number;
   adbPort: number;
+  isPinned?: boolean;
 }
 
 export interface EmulatorConfig {
@@ -67,8 +78,54 @@ export interface OverlayConfig {
   showSystemStats: boolean;
 }
 
+export type PortType = 'exec' | 'number' | 'string' | 'boolean' | 'list' | 'object' | 'any';
+
+export interface NodePort {
+  id: string;
+  name: string;
+  type: PortType;
+  direction: 'in' | 'out';
+  defaultValue?: any;
+  value?: any;
+}
+
+export interface NodeConnection {
+  id: string;
+  fromNodeId: string;
+  fromPortId: string;
+  toNodeId: string;
+  toPortId: string;
+  type: PortType;
+}
+
+export interface MacroVariable {
+  id: string;
+  name: string;
+  type: 'number' | 'string' | 'boolean' | 'list' | 'object';
+  value: any;
+  defaultValue: any;
+  scope: 'global' | 'local';
+  description?: string;
+}
+
+export interface MacroGroup {
+  id: string;
+  title: string;
+  color: string;
+  nodeIds: string[];
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  collapsed?: boolean;
+}
+
 export type ActionType =
   | 'Event (Start)'
+  | 'Event (Key Pressed)'
+  | 'Event (Key Released)'
+  | 'Event (Mouse Event)'
+  | 'Event (Timer Tick)'
   | 'Search Color'
   | 'Multi-Image Search'
   | 'Move Mouse'
@@ -76,21 +133,53 @@ export type ActionType =
   | 'Click Mouse'
   | 'Press Key'
   | 'Delay'
+  | 'Condition (If)'
+  | 'Compare'
+  | 'Set Variable'
+  | 'Get Variable'
+  | 'Math Operation'
+  | 'Repeat Loop'
+  | 'While Color Exists'
+  | 'Loop (While)'
+  | 'Loop (For Range)'
+  | 'Break'
+  | 'Continue'
   | 'ADB Tap'
+  | 'ADB Swipe'
   | 'ADB Shell'
-  | 'Script Block';
+  | 'Notification'
+  | 'Sound Beep'
+  | 'Log Message'
+  | 'Script Block'
+  | 'Custom Action';
 
 export interface MacroNode {
   id: string;
   actionType: ActionType;
+  title?: string;
   parameters: string;
   positionX: number;
   positionY: number;
   nextNodes: string[];
-  nodeCategory?: 'event' | 'action' | 'vision' | 'script';
+  nodeCategory?: 'event' | 'action' | 'vision' | 'condition' | 'variable' | 'loop' | 'script' | 'adb' | 'utility';
+  inputs?: NodePort[];
+  outputs?: NodePort[];
+  conditionBranch?: {
+    trueNodeId?: string;
+    falseNodeId?: string;
+  };
+  loopBranch?: {
+    bodyNodeId?: string;
+    doneNodeId?: string;
+  };
+  group?: string;
+  comment?: string;
+  disabled?: boolean;
   executionTimeMs?: number;
   lastExecutionStatus?: 'idle' | 'running' | 'success' | 'failed';
   variables?: Record<string, any>;
+  customActionId?: string;
+  data?: Record<string, any>;
 }
 
 export interface HumanizerConfig {
@@ -156,6 +245,7 @@ export interface GlobalConfig {
   autoStartDriver: boolean;
   defaultHotkey: string;
   startMinimizedToOverlay: boolean;
+  marqueeAnimationMode?: 'cyberNeon' | 'laserPulse' | 'matrixSmooth' | 'amberClassic' | 'gradientWave';
   customEmulators: InstalledEmulatorInfo[];
 }
 
@@ -173,6 +263,7 @@ export interface TelemetryData {
   activeProcessName: string;
   activePid: number | null;
   driverConnected: boolean;
+  isMacroRunning?: boolean;
 }
 
 export interface LogEntry {
@@ -180,6 +271,243 @@ export interface LogEntry {
   timestamp: string;
   message: string;
   level: 'info' | 'success' | 'warning' | 'error' | 'macro';
+}
+
+export type BlockCategory =
+  | 'events'
+  | 'actions'
+  | 'conditions'
+  | 'loops'
+  | 'variables'
+  | 'math'
+  | 'string'
+  | 'boolean'
+  | 'timing'
+  | 'input'
+  | 'mouse'
+  | 'keyboard'
+  | 'adb'
+  | 'utility'
+  | 'custom';
+
+export type BlockSocketType = 'statement' | 'number' | 'string' | 'boolean' | 'variable' | 'any';
+
+export interface BlockParameterDef {
+  id: string;
+  name: string;
+  type: 'number' | 'string' | 'boolean' | 'select' | 'color' | 'coords' | 'variable';
+  label: string;
+  defaultValue: any;
+  options?: Array<{ label: string; value: any }>;
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+export interface BlockNode {
+  id: string;
+  type: string;
+  category: BlockCategory;
+  title: string;
+  color: string;
+  icon?: string;
+  description?: string;
+  parameters: Record<string, any>;
+  hasContainerSlot?: boolean;
+  statementSlots?: string[]; // e.g. ['then', 'else'] or ['body'] or ['actions']
+  childSlots?: Record<string, BlockNode[]>; // e.g. { then: [...], else: [...] } or { body: [...] }
+  comment?: string;
+  isCollapsed?: boolean;
+  hasBreakpoint?: boolean;
+  isBreakpointBlock?: boolean;
+  isDisabled?: boolean;
+  customBlockId?: string;
+  subMacroId?: string;
+  positionX?: number;
+  positionY?: number;
+}
+
+export interface CustomBlockInputDef {
+  id: string;
+  name: string;
+  type: 'number' | 'string' | 'boolean' | 'variable';
+  defaultValue: any;
+  label?: string;
+}
+
+export interface CustomBlockOutputDef {
+  id: string;
+  name: string;
+  type: 'number' | 'string' | 'boolean';
+}
+
+export interface CustomBlockDefinition {
+  id: string;
+  name: string;
+  category: BlockCategory;
+  color: string;
+  icon: string;
+  description: string;
+  inputs: CustomBlockInputDef[];
+  outputs: CustomBlockOutputDef[];
+  internalBlocks: BlockNode[];
+  createdAt: string;
+  version?: number;
+}
+
+export interface SubMacroDefinition {
+  id: string;
+  name: string;
+  description: string;
+  parameters: Array<{ name: string; type: string; defaultValue: any }>;
+  blocks: BlockNode[];
+  createdAt: string;
+}
+
+export interface DebuggerState {
+  status: 'idle' | 'running' | 'paused' | 'stepping' | 'error' | 'completed';
+  activeBlockId?: string | null;
+  currentBlockId?: string | null;
+  stepCount: number;
+  executionTimeMs: number;
+  error?: string | null;
+  pausedReason?: 'breakpoint' | 'manual' | 'step' | 'error';
+  stepMode?: 'over' | 'into' | 'out';
+  callStack?: Array<{ macroName: string; blockId: string; blockTitle: string }>;
+}
+
+export interface ExecutionHistoryItem {
+  id: string;
+  timestamp: number;
+  blockId: string;
+  blockTitle: string;
+  category: string;
+  status: 'success' | 'failed' | 'paused' | 'skipped' | 'running';
+  durationMs: number;
+  message: string;
+  variablesSnapshot: Record<string, any>;
+}
+
+export interface ExecutionTraceItem {
+  id: string;
+  timestamp: number;
+  macroId?: string;
+  blockId: string;
+  blockTitle: string;
+  category: string;
+  state: 'start' | 'success' | 'failed' | 'paused' | 'retrying';
+  inputs?: Record<string, any>;
+  outputs?: Record<string, any>;
+  durationMs: number;
+  error?: string;
+}
+
+export interface RuntimeErrorModel {
+  errorId: string;
+  timestamp: number;
+  message: string;
+  blockId: string;
+  blockTitle: string;
+  macroId?: string;
+  context?: Record<string, any>;
+  severity: 'warning' | 'error' | 'fatal';
+  recoveryStrategy?: 'stop' | 'retry' | 'continue' | 'fallback';
+  retryCount?: number;
+}
+
+export interface PerformanceBlockMetric {
+  blockId: string;
+  title: string;
+  category: string;
+  executionCount: number;
+  totalTimeMs: number;
+  avgTimeMs: number;
+  maxTimeMs: number;
+  minTimeMs: number;
+}
+
+export interface PerformanceProfileReport {
+  totalExecutionTimeMs: number;
+  totalBlocksExecuted: number;
+  perBlockMetrics: Record<string, PerformanceBlockMetric>;
+  slowestBlocks: PerformanceBlockMetric[];
+  loopCounts: Record<string, number>;
+  callDepthMax: number;
+}
+
+export interface VersionDiffResult {
+  addedBlocks: BlockNode[];
+  removedBlocks: BlockNode[];
+  modifiedBlocks: Array<{
+    blockId: string;
+    title: string;
+    changes: string[];
+    oldBlock: BlockNode;
+    newBlock: BlockNode;
+  }>;
+  variableChanges: Array<{
+    name: string;
+    type: 'added' | 'removed' | 'changed';
+    oldValue?: any;
+    newValue?: any;
+  }>;
+}
+
+export type ConflictResolutionOption = 'replace' | 'keep_both' | 'rename_imported';
+
+export type ErrorRecoveryStrategy = 'halt' | 'skip_and_continue' | 'retry' | 'fallback_action';
+
+export interface AiBlockGenerationResponse {
+  success: boolean;
+  explanation: string;
+  blocks: BlockNode[];
+  suggestedVariables?: MacroVariable[];
+  validationErrors?: string[];
+}
+
+export interface AiMacroValidationResponse {
+  isValid: boolean;
+  warnings: string[];
+  errors: string[];
+  suggestions: string[];
+  complexityScore: number;
+}
+
+export interface AiDebugAnalysisResponse {
+  errorSummary: string;
+  rootCause: string;
+  suggestedFix: string;
+  recommendedBlockChanges?: {
+    blockId: string;
+    replacementParameters?: Record<string, any>;
+    explanation: string;
+  }[];
+}
+
+export interface MacroVersionSnapshot {
+  id: string;
+  versionNumber: number;
+  timestamp: string;
+  label: string;
+  description?: string;
+  nodeGraph: MacroNode[];
+  blockCoding: BlockNode[];
+  variables: MacroVariable[];
+  customBlocks: CustomBlockDefinition[];
+  isAutoSave?: boolean;
+}
+
+export interface MacroTemplateDefinition {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  icon: string;
+  tags: string[];
+  blockCoding: BlockNode[];
+  nodeGraph?: MacroNode[];
+  variables?: MacroVariable[];
 }
 
 export interface SnipData {
@@ -191,3 +519,4 @@ export interface SnipData {
   colorHex?: string;
   timestamp?: string;
 }
+

@@ -58,3 +58,13 @@
 .breathing-glow {
   animation: breathingPulse 2.8s infinite ease-in-out;
 }
+
+/* Neon Marquee Scrolling Animation */
+@keyframes marqueeScroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Activity,
   Cpu,
@@ -15,8 +15,13 @@ import {
   Radio,
   CheckCircle2,
   AlertTriangle,
+  Send,
+  CornerDownLeft,
+  Pin,
 } from 'lucide-react';
 import { InstalledEmulatorInfo, TelemetryData } from '../types';
+import { api } from '../services/api';
+import { Language, translations } from '../i18n/translations';
 
 interface DashboardViewProps {
   telemetry: TelemetryData | null;
@@ -32,6 +37,9 @@ interface DashboardViewProps {
   onOpenAddEmulatorModal: () => void;
   isEngineActive: boolean;
   onUpdateAdbPort: (port: number) => void;
+  onDeleteEmulator?: (id: string) => void;
+  onTogglePinEmulator?: (id: string) => void;
+  lang?: Language;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -48,12 +56,72 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAddEmulatorModal,
   isEngineActive,
   onUpdateAdbPort,
+  onDeleteEmulator,
+  onTogglePinEmulator,
+  lang = 'bn',
 }) => {
+  const t = translations[lang];
   const [customPort, setCustomPort] = useState<number>(5555);
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
+  const [commandInput, setCommandInput] = useState<string>('');
+  const [isExecutingCmd, setIsExecutingCmd] = useState<boolean>(false);
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+
+  const terminalBodyRef = useRef<HTMLDivElement>(null);
 
   const activeEmulator = emulators.find((e) => e.id === selectedEmulatorId) || emulators[0];
   const isRunning = telemetry?.isEmulatorRunning ?? false;
+
+  // Auto-scroll when new logs arrive
+  useEffect(() => {
+    if (autoScroll && terminalBodyRef.current) {
+      terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
+    }
+  }, [logs, autoScroll]);
+
+  // Handle Command Submission
+  const handleExecuteCommand = async (cmdText?: string) => {
+    const targetCmd = (cmdText || commandInput).trim();
+    if (!targetCmd || isExecutingCmd) return;
+
+    setIsExecutingCmd(true);
+    setCommandHistory((prev) => [...prev, targetCmd]);
+    setHistoryIndex(-1);
+    setCommandInput('');
+
+    try {
+      await api.executeTerminalCommand(targetCmd);
+    } catch (err) {
+      console.error('Failed to execute command:', err);
+    } finally {
+      setIsExecutingCmd(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleExecuteCommand();
+    } else if (e.key === 'ArrowUp') {
+      if (commandHistory.length > 0) {
+        const nextIdx = historyIndex + 1 < commandHistory.length ? historyIndex + 1 : historyIndex;
+        setHistoryIndex(nextIdx);
+        setCommandInput(commandHistory[commandHistory.length - 1 - nextIdx] || '');
+      }
+    } else if (e.key === 'ArrowDown') {
+      if (historyIndex > 0) {
+        const nextIdx = historyIndex - 1;
+        setHistoryIndex(nextIdx);
+        setCommandInput(commandHistory[commandHistory.length - 1 - nextIdx] || '');
+      } else {
+        setHistoryIndex(-1);
+        setCommandInput('');
+      }
+    }
+  };
+
+  const QUICK_COMMANDS = ['help', 'fps 144', 'trim', 'priority High', 'affinity 0xF0', 'driver status', 'list profiles'];
 
   return (
     <div className="space-y-6 pb-8">
@@ -129,7 +197,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 : 'Bridge Offline'}
             </div>
             <div className="text-xs text-[#64748b] mt-1">
-              Low-latency command pipe & fast touch injection
+              Direct IOCTL pipe & ultra low-latency touch injection
             </div>
           </div>
 
@@ -237,44 +305,104 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Emulator Selection Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mt-5">
-          {emulators.map((emu) => {
-            const isSelected = emu.id === selectedEmulatorId;
-            return (
-              <div
-                key={emu.id}
-                id={`emu-card-${emu.id}`}
-                onClick={() => onSelectEmulator(emu.id)}
-                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
-                  isSelected
-                    ? 'bg-[#182618] border-[#39ff14] shadow-[0_0_12px_rgba(57,255,20,0.2)]'
-                    : 'bg-[#181822] border-[#252733] hover:border-[#39ff14]/50 text-[#8892b0]'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold text-[#64748b]">
-                      {emu.type}
-                    </span>
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        isSelected && isRunning ? 'bg-[#39ff14] shadow-[0_0_6px_#39ff14]' : 'bg-[#475569]'
-                      }`}
-                    ></span>
-                  </div>
-                  <div className="text-sm font-bold text-white mt-1 truncate">{emu.name}</div>
-                  <div className="text-[11px] font-mono text-[#00e5ff] mt-0.5">Port: {emu.adbPort}</div>
-                </div>
+        {/* Emulator Selection Grid (Pinned Emulators First) */}
+        {emulators.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-5">
+            {[...emulators]
+              .sort((a, b) => {
+                if (a.isPinned && !b.isPinned) return -1;
+                if (!a.isPinned && b.isPinned) return 1;
+                return 0;
+              })
+              .map((emu) => {
+                const isSelected = emu.id === selectedEmulatorId;
+                return (
+                  <div
+                    key={emu.id}
+                    id={`emu-card-${emu.id}`}
+                    onClick={() => onSelectEmulator(emu.id)}
+                    className={`group p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between relative ${
+                      isSelected
+                        ? 'bg-[#182618] border-[#39ff14] shadow-[0_0_12px_rgba(57,255,20,0.2)]'
+                        : 'bg-[#181822] border-[#252733] hover:border-[#39ff14]/50 text-[#8892b0]'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-[10px] uppercase font-bold text-[#64748b]">
+                            {emu.type}
+                          </span>
+                          {emu.isPinned && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#eab308]/20 text-[#eab308] border border-[#eab308]/40 flex items-center gap-0.5">
+                              <Pin className="w-2.5 h-2.5 fill-current" />
+                              <span>PINNED</span>
+                            </span>
+                          )}
+                        </div>
 
-                <div className="mt-3 pt-2 border-t border-[#252733] flex items-center justify-between text-[10px]">
-                  <span className="text-[#64748b]">{emu.version || '64-Bit'}</span>
-                  {isSelected && <span className="text-[#39ff14] font-bold">ACTIVE</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                        <div className="flex items-center space-x-1">
+                          {/* Pin / Unpin Button */}
+                          {onTogglePinEmulator && (
+                            <button
+                              id={`btn-pin-emu-${emu.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onTogglePinEmulator(emu.id);
+                              }}
+                              className={`p-1 rounded transition-colors cursor-pointer ${
+                                emu.isPinned
+                                  ? 'bg-[#eab308]/20 text-[#eab308] hover:bg-[#eab308]/30 shadow-[0_0_8px_rgba(234,179,8,0.3)]'
+                                  : 'text-[#64748b] hover:text-[#eab308] hover:bg-black/30'
+                              }`}
+                              title={emu.isPinned ? 'Unpin Emulator' : 'Pin Emulator to Top'}
+                            >
+                              <Pin className={`w-3 h-3 ${emu.isPinned ? 'fill-current' : ''}`} />
+                            </button>
+                          )}
+
+                          {onDeleteEmulator && (
+                            <button
+                              id={`btn-del-emu-${emu.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteEmulator(emu.id);
+                              }}
+                              className="p-1 rounded text-[#64748b] hover:text-[#ff4444] hover:bg-black/30 transition-colors cursor-pointer"
+                              title={`Delete emulator ${emu.name}`}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              isSelected && isRunning ? 'bg-[#39ff14] shadow-[0_0_6px_#39ff14]' : 'bg-[#475569]'
+                            }`}
+                          ></span>
+                        </div>
+                      </div>
+                      <div className="text-sm font-bold text-white mt-1 truncate">{emu.name}</div>
+                      <div className="text-[11px] font-mono text-[#00e5ff] mt-0.5">Port: {emu.adbPort}</div>
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-[#252733] flex items-center justify-between text-[10px]">
+                      <span className="text-[#64748b]">{emu.version || 'Custom / Dynamic'}</span>
+                      {isSelected && <span className="text-[#39ff14] font-bold">ACTIVE</span>}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        ) : (
+          <div className="mt-5 p-8 rounded-xl bg-[#181822] border border-dashed border-[#252733] text-center">
+            <Tv className="w-8 h-8 text-[#8892b0] mx-auto mb-2 opacity-50" />
+            <p className="text-sm font-bold text-white">No Emulator Instances Configured</p>
+            <p className="text-xs text-[#8892b0] mt-1 max-w-md mx-auto">
+              You have full control. Click <strong className="text-[#00e5ff]">+ Add Emulator</strong> above to connect your custom emulator executable path, ADB port, and custom emulator type.
+            </p>
+          </div>
+        )}
 
         {/* Master Action Strip */}
         <div className="mt-6 pt-5 border-t border-[#1f202b] flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -288,7 +416,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   : 'bg-[#252733] text-white hover:bg-[#323544] border border-[#3e4256]'
               }`}
             >
-              <Sparkles className="w-5 h-5 text-[#39ff14] animate-spin" />
+              <Sparkles className="w-5 h-5 text-[#39ff14]" />
               <span>{isEngineActive ? '⚡ SYSTEM OPTIMIZED & LOCKED' : 'INITIALIZE & OPTIMIZE SYSTEM'}</span>
             </button>
 
@@ -309,14 +437,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Live Neon Terminal Log */}
-      <div className="bg-[#0b0b0f] rounded-2xl border border-[#252733] shadow-2xl overflow-hidden">
+      {/* Live Neon Terminal Log with Interactive Command Execution */}
+      <div className="bg-[#0b0b0f] rounded-2xl border border-[#252733] shadow-2xl overflow-hidden flex flex-col">
         {/* Terminal Header */}
         <div className="h-11 px-5 bg-[#14141c] border-b border-[#1f202b] flex items-center justify-between select-none">
           <div className="flex items-center space-x-2.5">
             <Terminal className="w-4 h-4 text-[#39ff14]" />
             <span className="text-xs font-bold text-white tracking-wider uppercase font-mono">
-              LIVE ENGINE TERMINAL LOG
+              LIVE ENGINE TERMINAL &amp; INTERACTIVE SHELL
             </span>
             <span className="px-2 py-0.5 rounded bg-[#162b16] text-[#39ff14] text-[10px] font-mono font-bold">
               IOCTL HOOK ACTIVE
@@ -348,15 +476,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Terminal Body */}
-        <div className="p-4 h-64 overflow-y-auto font-mono text-xs space-y-1.5 bg-[#09090d]">
+        <div
+          ref={terminalBodyRef}
+          className="p-4 h-64 overflow-y-auto font-mono text-xs space-y-1.5 bg-[#09090d] select-text"
+        >
           {logs.map((log, index) => {
-            const isError = log.includes('error') || log.includes('Failed') || log.includes('exited');
-            const isSuccess = log.includes('ACTIVATED') || log.includes('Freed') || log.includes('OPTIMIZED');
-            const isAdb = log.includes('[ADB]');
+            const isError = log.includes('error') || log.includes('Failed') || log.includes('exited') || log.includes('Error');
+            const isSuccess = log.includes('ACTIVATED') || log.includes('Freed') || log.includes('OPTIMIZED') || log.includes('saved');
+            const isAdb = log.includes('[ADB]') || log.includes('[ADB Output]') || log.includes('[Shell Output]');
             const isDriver = log.includes('[Driver]') || log.includes('[IOCTL]');
+            const isUserPrompt = log.startsWith('>');
 
             let colorClass = 'text-[#ccd6f6]';
-            if (isError) colorClass = 'text-[#ff5555] font-semibold';
+            if (isUserPrompt) colorClass = 'text-[#eab308] font-bold';
+            else if (isError) colorClass = 'text-[#ff5555] font-semibold';
             else if (isSuccess) colorClass = 'text-[#39ff14] font-semibold';
             else if (isAdb) colorClass = 'text-[#00e5ff]';
             else if (isDriver) colorClass = 'text-[#d500f9]';
@@ -367,6 +500,46 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             );
           })}
+        </div>
+
+        {/* Quick Suggestion Pills */}
+        <div className="px-4 py-2 bg-[#0d0e14] border-t border-[#1a1c26] flex items-center gap-2 overflow-x-auto">
+          <span className="text-[10px] text-[#64748b] font-mono uppercase font-bold shrink-0">Quick Cmds:</span>
+          {QUICK_COMMANDS.map((cmd) => (
+            <button
+              key={cmd}
+              type="button"
+              onClick={() => handleExecuteCommand(cmd)}
+              className="px-2 py-0.5 rounded bg-[#161822] hover:bg-[#202434] text-[#00e5ff] border border-[#232838] hover:border-[#00e5ff]/50 font-mono text-[11px] shrink-0 transition-colors cursor-pointer"
+            >
+              {cmd}
+            </button>
+          ))}
+        </div>
+
+        {/* Command Input Prompt Bar */}
+        <div className="p-3 bg-[#111218] border-t border-[#1f202b] flex items-center gap-2">
+          <div className="flex items-center gap-1 text-[#39ff14] font-mono text-sm font-bold pl-2 select-none">
+            <span>&gt;</span>
+          </div>
+          <input
+            type="text"
+            value={commandInput}
+            onChange={(e) => setCommandInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isExecutingCmd}
+            placeholder="Type terminal command (e.g. adb shell getprop, fps 144, trim, affinity 0xF0, help)..."
+            className="flex-1 bg-transparent text-white font-mono text-xs outline-none placeholder:text-[#475569]"
+          />
+          <button
+            type="button"
+            onClick={() => handleExecuteCommand()}
+            disabled={!commandInput.trim() || isExecutingCmd}
+            className="h-8 px-3.5 rounded-lg bg-[#39ff14] hover:bg-[#32e012] disabled:opacity-30 disabled:hover:bg-[#39ff14] text-black font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <span>Execute</span>
+            <CornerDownLeft className="w-3.5 h-3.5 stroke-[2.5]" />
+          </button>
         </div>
       </div>
     </div>

@@ -4,14 +4,14 @@
  * from visual node graphs, and provides a sandboxed execution runtime.
  */
 
-import { MacroNode, ScriptExecutionResult } from '../types';
+import { BlockNode, MacroNode, ScriptExecutionResult } from '../types';
 import { generateHumanPath, getHumanClickPoint, randomizeDelay } from './humanizer';
 
-export function transpileBlocksToCSharp(blocks: any[]): string {
+export function transpileBlocksToCSharp(blocks: BlockNode[]): string {
   const lines: string[] = [
     '// ===================================================================',
-    '// SmartOptimizer (AIM/OPT Pro v3.0) - Block-to-C# Transpiled Script',
-    '// Target Architecture: .NET 8.0 WPF / C# Engine Pipeline',
+    '// SmartOptimizer (AIM/OPT Pro v3.5) - Visual Block Coding to C# Script',
+    '// Target Architecture: .NET 8.0 WPF / Windows Kernel P-Invoke Pipeline',
     '// ===================================================================',
     '',
     'using System;',
@@ -19,6 +19,7 @@ export function transpileBlocksToCSharp(blocks: any[]): string {
     'using System.Threading.Tasks;',
     'using SmartOptimizer.Core.Services;',
     'using SmartOptimizer.Core.Input;',
+    'using SmartOptimizer.Core.Vision;',
     '',
     'namespace SmartOptimizer.Generated',
     '{',
@@ -26,6 +27,7 @@ export function transpileBlocksToCSharp(blocks: any[]): string {
     '    {',
     '        private readonly AdbService _adb = new AdbService();',
     '        private readonly HumanizerService _humanizer = new HumanizerService();',
+    '        private readonly VariableContext _vars = new VariableContext();',
     '',
     '        public async Task ExecuteBlocksAsync()',
     '        {',
@@ -33,67 +35,210 @@ export function transpileBlocksToCSharp(blocks: any[]): string {
     '',
   ];
 
-  for (let i = 0; i < blocks.length; i++) {
-    const blk = blocks[i];
-    const params = blk.parameters || {};    lines.push(`            // Block [${i + 1}]: ${blk.title} (Category: ${blk.category})`);
+  function transpileBlockList(list: BlockNode[], indent: string) {
+    for (let i = 0; i < list.length; i++) {
+      const blk = list[i];
+      if (blk.isDisabled) continue;
+      const p = blk.parameters || {};
 
-    switch (blk.category) {
-      case 'Vision': {
-        const x = params.x || '860';
-        const y = params.y || '440';
-        const w = params.w || '200';
-        const h = params.h || '200';
-        const color = params.color || '#39FF14';
-        lines.push(`            var matchResult = await VisionEngine.SearchColorAsync(new Rectangle(${x}, ${y}, ${w}, ${h}), "${color}");`);
-        lines.push('            if (matchResult.Success)');
-        lines.push('            {');
-        lines.push(`                Logger.Log($"[Vision] Found target color at ({matchResult.Location.X}, {matchResult.Location.Y})");`);
-        if (blk.childBlocks && blk.childBlocks.length > 0) {
-          for (const child of blk.childBlocks) {
-            lines.push(`                await Engine.ExecuteChildBlockAsync("${child.title}", "${JSON.stringify(child.parameters)}");`);
+      lines.push(`${indent}// Block: ${blk.title} [${blk.category}]`);
+      if (blk.comment) {
+        lines.push(`${indent}// Note: ${blk.comment}`);
+      }
+
+      switch (blk.type) {
+        case 'event_start':
+        case 'event_key_pressed':
+        case 'event_timer_tick': {
+          lines.push(`${indent}Logger.Log($"[Event] ${blk.title} triggered");`);
+          if (blk.childSlots?.actions) {
+            transpileBlockList(blk.childSlots.actions, indent);
           }
-        } else {
-          lines.push(`                await _humanizer.MoveMouseBezierAsync(new Point(${x}, ${y}));`);
-          lines.push('                await Engine.PerformClickAsync();');
+          break;
         }
-        lines.push('            }');
-        break;
-      }
 
-      case 'Input': {
-        const button = params.button || 'left';
-        lines.push(`            await _humanizer.PerformHumanClickAsync(new Point(960, 540), "${button}");`);
-        break;
-      }
+        case 'action_human_click': {
+          const btn = p.button || 'left';
+          const jitter = p.jitterRadius || 3;
+          lines.push(`${indent}await _humanizer.PerformHumanClickAsync(_vars.GetPoint("mouseX", "mouseY"), "${btn}", jitterRadius: ${jitter});`);
+          break;
+        }
 
-      case 'ADB': {
-        const x = params.x || '960';
-        const y = params.y || '540';
-        lines.push(`            await _adb.TapAsync(${x}, ${y});`);
-        break;
-      }
+        case 'action_move_mouse': {
+          const x = p.x ?? 960;
+          const y = p.y ?? 540;
+          const smooth = p.smooth !== false;
+          lines.push(`${indent}await _humanizer.MoveMouseBezierAsync(new Point(${x}, ${y}), smooth: ${smooth});`);
+          lines.push(`${indent}_vars.Set("mouseX", ${x}); _vars.Set("mouseY", ${y});`);
+          break;
+        }
 
-      case 'Loops': {
-        const delay = params.delayMs || '50';
-        lines.push(`            await Task.Delay(_humanizer.RandomizeDelay(${delay}));`);
-        break;
-      }
+        case 'action_press_key': {
+          const key = p.key || 'R';
+          const dur = p.durationMs || 60;
+          lines.push(`${indent}await InputDriver.PressKeyAsync("${key}", durationMs: ${dur});`);
+          break;
+        }
 
-      case 'Logic': {
-        lines.push(`            // Logic Evaluation Slot`);
-        lines.push(`            Logger.Log("[Logic] Evaluated conditional block state: TRUE");`);
-        break;
-      }
+        case 'action_send_text': {
+          const text = p.text || '';
+          lines.push(`${indent}await InputDriver.TypeTextAsync("${text}");`);
+          break;
+        }
 
-      default: {
-        lines.push(`            await Engine.ExecuteCustomCommandAsync("${blk.title}");`);
-        break;
+        case 'action_log_message': {
+          lines.push(`${indent}Logger.Log($"${p.message || ''}");`);
+          break;
+        }
+
+        case 'action_sound_beep': {
+          lines.push(`${indent}Console.Beep(${p.frequency || 880}, ${p.durationMs || 120});`);
+          break;
+        }
+
+        case 'condition_if_else': {
+          lines.push(`${indent}if (${p.expression || 'true'})`);
+          lines.push(`${indent}{`);
+          if (blk.childSlots?.then && blk.childSlots.then.length > 0) {
+            transpileBlockList(blk.childSlots.then, indent + '    ');
+          } else {
+            lines.push(`${indent}    // Then branch empty`);
+          }
+          lines.push(`${indent}}`);
+          if (blk.childSlots?.else && blk.childSlots.else.length > 0) {
+            lines.push(`${indent}else`);
+            lines.push(`${indent}{`);
+            transpileBlockList(blk.childSlots.else, indent + '    ');
+            lines.push(`${indent}}`);
+          }
+          break;
+        }
+
+        case 'condition_compare': {
+          const left = p.leftOperand || '0';
+          const op = p.operator || '==';
+          const right = p.rightOperand || '0';
+          lines.push(`${indent}if (${left} ${op} ${right})`);
+          lines.push(`${indent}{`);
+          if (blk.childSlots?.then && blk.childSlots.then.length > 0) {
+            transpileBlockList(blk.childSlots.then, indent + '    ');
+          } else {
+            lines.push(`${indent}    // Then branch empty`);
+          }
+          lines.push(`${indent}}`);
+          if (blk.childSlots?.else && blk.childSlots.else.length > 0) {
+            lines.push(`${indent}else`);
+            lines.push(`${indent}{`);
+            transpileBlockList(blk.childSlots.else, indent + '    ');
+            lines.push(`${indent}}`);
+          }
+          break;
+        }
+
+        case 'condition_color_found': {
+          lines.push(`${indent}var match = await VisionEngine.SearchColorAsync(new Rectangle(${p.regionX || 860}, ${p.regionY || 440}, ${p.width || 200}, ${p.height || 200}), "${p.color || '#39FF14'}");`);
+          lines.push(`${indent}if (match.Success)`);
+          lines.push(`${indent}{`);
+          if (blk.childSlots?.then && blk.childSlots.then.length > 0) {
+            transpileBlockList(blk.childSlots.then, indent + '    ');
+          }
+          lines.push(`${indent}}`);
+          if (blk.childSlots?.else && blk.childSlots.else.length > 0) {
+            lines.push(`${indent}else`);
+            lines.push(`${indent}{`);
+            transpileBlockList(blk.childSlots.else, indent + '    ');
+            lines.push(`${indent}}`);
+          }
+          break;
+        }
+
+        case 'loop_repeat_count': {
+          const count = p.count || 5;
+          const varName = p.counterVar || 'i';
+          lines.push(`${indent}for (int ${varName} = 1; ${varName} <= ${count}; ${varName}++)`);
+          lines.push(`${indent}{`);
+          lines.push(`${indent}    _vars.Set("${varName}", ${varName});`);
+          if (blk.childSlots?.body && blk.childSlots.body.length > 0) {
+            transpileBlockList(blk.childSlots.body, indent + '    ');
+          }
+          lines.push(`${indent}}`);
+          break;
+        }
+
+        case 'loop_while': {
+          lines.push(`${indent}while (${p.condition || 'false'})`);
+          lines.push(`${indent}{`);
+          if (blk.childSlots?.body && blk.childSlots.body.length > 0) {
+            transpileBlockList(blk.childSlots.body, indent + '    ');
+          }
+          lines.push(`${indent}}`);
+          break;
+        }
+
+        case 'loop_break': {
+          lines.push(`${indent}break;`);
+          break;
+        }
+
+        case 'loop_continue': {
+          lines.push(`${indent}continue;`);
+          break;
+        }
+
+        case 'var_set': {
+          lines.push(`${indent}_vars.Set("${p.varName || 'var'}", "${p.value ?? '0'}");`);
+          break;
+        }
+
+        case 'var_change_by': {
+          lines.push(`${indent}_vars.Increment("${p.varName || 'var'}", ${p.delta || 1});`);
+          break;
+        }
+
+        case 'math_calc': {
+          lines.push(`${indent}_vars.Set("${p.outputVar || 'res'}", (${p.operandA || 0}) ${p.operator || '+'} (${p.operandB || 0}));`);
+          break;
+        }
+
+        case 'timing_delay': {
+          lines.push(`${indent}await Task.Delay(_humanizer.RandomizeDelay(${p.durationMs || 100}, ${p.jitterMs || 10}));`);
+          break;
+        }
+
+        case 'adb_tap': {
+          lines.push(`${indent}await _adb.TapAsync(${p.x || 960}, ${p.y || 540});`);
+          break;
+        }
+
+        case 'adb_swipe': {
+          lines.push(`${indent}await _adb.SwipeAsync(${p.startX || 500}, ${p.startY || 800}, ${p.endX || 500}, ${p.endY || 300}, ${p.durationMs || 250});`);
+          break;
+        }
+
+        case 'adb_shell': {
+          lines.push(`${indent}await _adb.ExecuteShellAsync("${p.command || ''}");`);
+          break;
+        }
+
+        case 'util_breakpoint': {
+          lines.push(`${indent}#if DEBUG`);
+          lines.push(`${indent}System.Diagnostics.Debugger.Break(); // Breakpoint note: ${p.reason || ''}`);
+          lines.push(`${indent}#endif`);
+          break;
+        }
+
+        default: {
+          lines.push(`${indent}await ExecutionRuntime.DispatchGenericBlockAsync("${blk.title}");`);
+          break;
+        }
       }
+      lines.push('');
     }
-    lines.push('');
   }
 
-  lines.push('            Logger.Log("[BlockEngine] Block sequence execution completed.");');
+  transpileBlockList(blocks, '            ');
+
+  lines.push('            Logger.Log("[BlockEngine] Block sequence execution completed successfully.");');
   lines.push('        }');
   lines.push('    }');
   lines.push('}');
@@ -226,6 +371,31 @@ export function transpileGraphToCSharp(nodes: MacroNode[]): string {
       case 'ADB Shell':
         lines.push(`        await adb.ExecuteShellAsync("${param}");`);
         break;
+
+      case 'Repeat Loop': {
+        const count = parseInt(param, 10) || 5;
+        lines.push(`        for (int loopIdx = 0; loopIdx < ${count}; loopIdx++)`);
+        lines.push('        {');
+        lines.push(`            context.Log($"[Loop] Running iteration {loopIdx + 1}/${count}");`);
+        lines.push('            await Task.Delay(20);');
+        lines.push('        }');
+        break;
+      }
+
+      case 'While Color Exists': {
+        const parts = param.split(',').map((s) => s.trim());
+        const x = parts[0] || '860';
+        const y = parts[1] || '440';
+        const w = parts[2] || '200';
+        const h = parts[3] || '200';
+        const color = parts[4] || '#39FF14';
+        lines.push(`        while ((await vision.SearchColorAsync(new Rectangle(${x}, ${y}, ${w}, ${h}), "${color}", tolerance: 15)).Success)`);
+        lines.push('        {');
+        lines.push('            context.Log("[While Loop] Target condition active, executing step...");');
+        lines.push('            await Task.Delay(50);');
+        lines.push('        }');
+        break;
+      }
 
       case 'Script Block':
         lines.push(`        // Custom embedded script:`);

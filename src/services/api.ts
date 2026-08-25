@@ -1,4 +1,4 @@
-import { GlobalConfig, InstalledEmulatorInfo, LogEntry, PresetProfile, TelemetryData } from '../types';
+import { GlobalConfig, InstalledEmulatorInfo, LogEntry, PresetProfile, TelemetryData, CustomActionDefinition } from '../types';
 
 const API_BASE = '/api';
 
@@ -66,6 +66,29 @@ export const api = {
     return res.json();
   },
 
+  // Custom Actions (Action Crafter)
+  async getCustomActions(): Promise<{ customActions: CustomActionDefinition[] }> {
+    const res = await fetch(`${API_BASE}/custom-actions`);
+    return res.json();
+  },
+
+  async saveCustomAction(action: CustomActionDefinition): Promise<{ success: boolean; customAction: CustomActionDefinition }> {
+    const res = await fetch(`${API_BASE}/custom-actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(action),
+    });
+    return res.json();
+  },
+
+  async deleteCustomAction(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/custom-actions/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    return res.json();
+  },
+
+  // Emulators
   async getEmulators(): Promise<{ emulators: InstalledEmulatorInfo[]; activeEmulator: InstalledEmulatorInfo | null }> {
     const res = await fetch(`${API_BASE}/emulators`);
     return res.json();
@@ -76,6 +99,13 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async deleteEmulator(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/emulators/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
     });
     return res.json();
   },
@@ -98,6 +128,13 @@ export const api = {
 
   async toggleEngine(): Promise<{ isEngineActive: boolean }> {
     const res = await fetch(`${API_BASE}/engine/toggle`, {
+      method: 'POST',
+    });
+    return res.json();
+  },
+
+  async resetEngine(): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/engine/reset`, {
       method: 'POST',
     });
     return res.json();
@@ -126,11 +163,20 @@ export const api = {
     return res.json();
   },
 
-  async sendAdbCommand(params: { command?: string; x?: number; y?: number; fps?: number; dpi?: number }) {
+  async sendAdbCommand(params: { command?: string; x?: number; y?: number; x1?: number; y1?: number; x2?: number; y2?: number; fps?: number; dpi?: number; script?: string }) {
     const res = await fetch(`${API_BASE}/adb/command`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
+    });
+    return res.json();
+  },
+
+  async executeTerminalCommand(command: string): Promise<{ success: boolean; output: string }> {
+    const res = await fetch(`${API_BASE}/terminal/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command }),
     });
     return res.json();
   },

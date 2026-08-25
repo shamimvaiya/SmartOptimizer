@@ -82,20 +82,27 @@ export const AddEmulatorModal: React.FC<AddEmulatorModalProps> = ({ isOpen, onCl
             </div>
 
             <div>
-              <label className="text-xs font-bold text-[#8892b0] uppercase">Emulator Family</label>
-              <select
+              <label className="text-xs font-bold text-[#8892b0] uppercase">
+                Emulator Family / Engine
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. BlueStacks, LDPlayer, Custom..."
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className="w-full h-10 mt-1 px-3 rounded-xl bg-[#181824] text-white border border-[#2d2d3d] text-xs outline-none focus:border-[#00e5ff] cursor-pointer"
-              >
-                <option value="Custom">Custom</option>
-                <option value="BlueStacks">BlueStacks 5</option>
-                <option value="LDPlayer">LDPlayer 9</option>
-                <option value="NoxPlayer">NoxPlayer</option>
-                <option value="Gameloop">Gameloop</option>
-                <option value="MuMu">MuMu Player</option>
-                <option value="MEmu">MEmu</option>
-              </select>
+                className="w-full h-10 mt-1 px-3.5 rounded-xl bg-[#181824] text-white border border-[#2d2d3d] text-xs outline-none focus:border-[#00e5ff]"
+                list="emulator-family-suggestions"
+              />
+              <datalist id="emulator-family-suggestions">
+                <option value="Custom" />
+                <option value="BlueStacks" />
+                <option value="LDPlayer" />
+                <option value="NoxPlayer" />
+                <option value="Gameloop" />
+                <option value="MuMu" />
+                <option value="MEmu" />
+                <option value="MSIAppPlayer" />
+              </datalist>
             </div>
           </div>
 

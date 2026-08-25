@@ -12,11 +12,15 @@ import { SmartSnippingOverlay } from './components/SmartSnippingOverlay';
 import { CalibrationView } from './components/CalibrationView';
 import { CsharpWpfCodeView } from './components/CsharpWpfCodeView';
 import { LogicIntelligenceView } from './components/LogicIntelligenceView';
+import { ConfirmModal } from './components/ConfirmModal';
 import { api } from './services/api';
 import { GlobalConfig, InstalledEmulatorInfo, MacroNode, PresetProfile, TelemetryData, SnipData, VisualProcessingConfig } from './types';
+import { Language, translations } from './i18n/translations';
 
 export const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<string>('Dashboard');
+  const [lang, setLang] = useState<Language>('bn');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
   const [globalConfig, setGlobalConfig] = useState<GlobalConfig | null>(null);
   const [presets, setPresets] = useState<PresetProfile[]>([]);
@@ -29,6 +33,9 @@ export const App: React.FC = () => {
   const [isPresetModalOpen, setIsPresetModalOpen] = useState<boolean>(false);
   const [isMacroRunning, setIsMacroRunning] = useState<boolean>(false);
   const [isSnipperOpen, setIsSnipperOpen] = useState<boolean>(false);
+  const [profileToDelete, setProfileToDelete] = useState<string | null>(null);
+  const [emuToDelete, setEmuToDelete] = useState<InstalledEmulatorInfo | null>(null);
+  const [emuRunningWarning, setEmuRunningWarning] = useState<string | null>(null);
   const [activeSnip, setActiveSnip] = useState<SnipData | null>({
     x: 860,
     y: 440,
@@ -160,22 +167,80 @@ export const App: React.FC = () => {
     }
   };
 
-  // Preset Delete
-  const handleDeletePreset = async () => {
-    if (!activePreset) return;
-    if (presets.length <= 1) {
-      alert('Cannot delete the only available profile.');
+  // Preset Delete Trigger
+  const handleDeletePreset = (name?: string) => {
+    const targetName = name || activePreset?.name;
+    if (!targetName) return;
+    setProfileToDelete(targetName);
+  };
+
+  // Confirm Delete Preset
+  const handleConfirmDeletePreset = async () => {
+    if (!profileToDelete) return;
+    try {
+      const res = await api.deletePreset(profileToDelete);
+      if (res.success) {
+        const remaining = presets.filter((p) => p.name !== profileToDelete);
+        setPresets(remaining);
+        const nextActive = remaining[0] || null;
+        setActivePreset(nextActive);
+        handleAddLog(`[Profile] Deleted profile '${profileToDelete}'`);
+      }
+    } catch (err) {
+      console.error('Delete profile error:', err);
+    } finally {
+      setProfileToDelete(null);
+    }
+  };
+
+  // Emulator Delete Trigger with Running State Check
+  const handleDeleteEmulator = (emuId: string) => {
+    const targetEmu = emulators.find((e) => e.id === emuId);
+    if (!targetEmu) return;
+
+    // Check if emulator is currently running
+    const isEmuRunning = (targetEmu.id === selectedEmulatorId && telemetry?.isEmulatorRunning) || targetEmu.status === 'Running';
+    if (isEmuRunning) {
+      setEmuRunningWarning(
+        `Emulator instance '${targetEmu.name}' is currently RUNNING! Please terminate or stop the emulator first before attempting to delete it.`
+      );
       return;
     }
-    const confirmed = confirm(`Are you sure you want to delete profile '${activePreset.name}'?`);
-    if (!confirmed) return;
 
-    const res = await api.deletePreset(activePreset.name);
-    if (res.success) {
-      const remaining = presets.filter((p) => p.name !== activePreset.name);
-      setPresets(remaining);
-      const nextActive = remaining[0];
-      if (nextActive) setActivePreset(nextActive);
+    setEmuToDelete(targetEmu);
+  };
+
+  // Toggle Pin Emulator to Top
+  const handleTogglePinEmulator = (id: string) => {
+    setEmulators((prev) =>
+      prev.map((e) => {
+        if (e.id === id) {
+          const nextPinned = !e.isPinned;
+          handleAddLog(`[Emulator] ${nextPinned ? 'Pinned' : 'Unpinned'} instance '${e.name}'`);
+          return { ...e, isPinned: nextPinned };
+        }
+        return e;
+      })
+    );
+  };
+
+  // Confirm Delete Emulator
+  const handleConfirmDeleteEmulator = async () => {
+    if (!emuToDelete) return;
+    try {
+      const res = await api.deleteEmulator(emuToDelete.id);
+      if (res.success) {
+        const remaining = emulators.filter((e) => e.id !== emuToDelete.id);
+        setEmulators(remaining);
+        if (selectedEmulatorId === emuToDelete.id) {
+          setSelectedEmulatorId(remaining[0]?.id || '');
+        }
+        handleAddLog(`[Emulator] Deleted instance '${emuToDelete.name}'`);
+      }
+    } catch (err) {
+      console.error('Delete emulator error:', err);
+    } finally {
+      setEmuToDelete(null);
     }
   };
 
@@ -353,37 +418,46 @@ export const App: React.FC = () => {
 
   // Get Page Title
   const getPageTitle = () => {
+    const isBn = lang === 'bn';
     switch (currentPage) {
       case 'Dashboard':
-        return 'System Overview & Emulator Telemetry';
+        return isBn ? 'সিস্টেম ওভারভিউ ও ইমুলেটর টেলিমেট্রি' : 'System Overview & Emulator Telemetry';
       case 'LogicIntelligence':
-        return 'Logic & Intelligence Layer (Engine, Scripting & Anti-Detect)';
+        return isBn ? 'লজিক ও ইন্টেলিজেন্স লেয়ার (স্ক্রিপ্ট ও অ্যান্টি-ডিটেক্ট)' : 'Logic & Intelligence Layer (Engine, Scripting & Anti-Detect)';
       case 'Calibration':
-        return 'Smart Snipping Tool & Visual Calibration Suite';
+        return isBn ? 'স্মার্ট স্নাইপিং টুল ও ভিজুয়াল ক্যালিব্রেশন' : 'Smart Snipping Tool & Visual Calibration Suite';
       case 'Macro':
-        return 'Visual Macro Studio (Node Graph & Automation)';
+        return isBn ? 'ভিজুয়াল ম্যাক্রো স্টুডিও (নোড গ্রাফ ও অটোমেশন)' : 'Visual Macro Studio (Node Graph & Automation)';
       case 'Performance':
-        return 'Performance Engine & Core Tuning';
+        return isBn ? 'পারফরম্যান্স ইঞ্জিন ও কার্নেল টিউনিং' : 'Performance Engine & Core Tuning';
       case 'CsharpWpf':
-        return 'C# .NET 8 & WPF Production Architecture';
+        return isBn ? 'সি# ডটনেট ৮ ও ডব্লিউপিএফ প্রোডাকশন কোড' : 'C# .NET 8 & WPF Production Architecture';
       case 'Settings':
-        return 'Stealth HUD & System Configuration';
+        return isBn ? 'স্টিলথ HUD ওভারলে ও কনফিগারেশন' : 'Stealth HUD & System Configuration';
       default:
-        return 'Optimizer Dashboard';
+        return isBn ? 'স্মার্ট অপ্টিমাইজার ড্যাশবোর্ড' : 'Optimizer Dashboard';
     }
   };
 
   return (
-    <div className="flex h-screen bg-[#0c0c10] text-[#ccd6f6] overflow-hidden font-['Outfit',sans-serif]">
+    <div className="flex h-screen bg-[#0c0c10] text-[#ccd6f6] overflow-hidden font-['Outfit','Hind_Siliguri','Noto_Sans_Bengali',sans-serif]">
       {/* Sidebar Navigation */}
       <Sidebar
         currentPage={currentPage}
         onNavigate={setCurrentPage}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
         telemetry={telemetry}
         onToggleOverlay={() => setIsOverlayOpen((prev) => !prev)}
         isOverlayOpen={isOverlayOpen}
         onResetSystem={handleResetSystem}
         onOpenSnipper={() => setIsSnipperOpen(true)}
+        onExitApplication={() => {
+          handleAddLog('[System] User initiated application exit shutdown.');
+          setIsOverlayOpen(false);
+          api.resetEngine().catch(() => {});
+        }}
+        lang={lang}
       />
 
       {/* Main Content Area */}
@@ -399,6 +473,8 @@ export const App: React.FC = () => {
           overlayHotkey={activePreset?.overlay?.toggleHotkey || globalConfig?.defaultHotkey || 'HOME'}
           onToggleOverlay={() => setIsOverlayOpen((prev) => !prev)}
           onOpenSnipper={() => setIsSnipperOpen(true)}
+          lang={lang}
+          onToggleLanguage={setLang}
         />
 
         {/* Scrollable Page Body */}
@@ -422,46 +498,70 @@ export const App: React.FC = () => {
                   api.applyTweaks({ adbPort: port });
                 }
               }}
+              onDeleteEmulator={handleDeleteEmulator}
+              onTogglePinEmulator={handleTogglePinEmulator}
+              lang={lang}
             />
           )}
 
-          {currentPage === 'LogicIntelligence' && activePreset && (
-            <LogicIntelligenceView
-              activePreset={activePreset}
-              onSavePreset={handleSavePreset}
-              onLog={handleAddLog}
-            />
+          {currentPage === 'LogicIntelligence' && (
+            activePreset ? (
+              <LogicIntelligenceView
+                activePreset={activePreset}
+                onSavePreset={handleSavePreset}
+                onLog={handleAddLog}
+              />
+            ) : (
+              <div className="p-12 text-center bg-[#141419] rounded-2xl border border-[#252733]">
+                <p className="text-white font-bold text-base">No Active Profile Selected</p>
+                <p className="text-xs text-[#8892b0] mt-1">Please create a new profile using "+ New" in the top bar to configure logic and anti-detect behaviors.</p>
+              </div>
+            )
           )}
 
-          {currentPage === 'Calibration' && activePreset && (
-            <CalibrationView
-              activeSnip={activeSnip}
-              onSnipChange={setActiveSnip}
-              onOpenSnipper={() => setIsSnipperOpen(true)}
-              visualConfig={
-                activePreset.visualProcessing || {
-                  enableOpenCvSearch: true,
-                  captureRegionX: 860,
-                  captureRegionY: 440,
-                  captureRegionWidth: 200,
-                  captureRegionHeight: 200,
-                  confidenceThreshold: 0.85,
-                  colorTolerance: 15,
-                  matchTemplateName: 'crosshair_target.png',
+          {currentPage === 'Calibration' && (
+            activePreset ? (
+              <CalibrationView
+                activeSnip={activeSnip}
+                onSnipChange={setActiveSnip}
+                onOpenSnipper={() => setIsSnipperOpen(true)}
+                visualConfig={
+                  activePreset.visualProcessing || {
+                    enableOpenCvSearch: true,
+                    captureRegionX: 860,
+                    captureRegionY: 440,
+                    captureRegionWidth: 200,
+                    captureRegionHeight: 200,
+                    confidenceThreshold: 0.85,
+                    colorTolerance: 15,
+                    matchTemplateName: 'crosshair_target.png',
+                  }
                 }
-              }
-              onSaveVisualConfig={handleSaveVisualConfig}
-              onLog={handleAddLog}
-            />
+                onSaveVisualConfig={handleSaveVisualConfig}
+                onLog={handleAddLog}
+              />
+            ) : (
+              <div className="p-12 text-center bg-[#141419] rounded-2xl border border-[#252733]">
+                <p className="text-white font-bold text-base">No Active Profile Selected</p>
+                <p className="text-xs text-[#8892b0] mt-1">Please create a new profile using "+ New" in the top bar to configure visual calibration.</p>
+              </div>
+            )
           )}
 
-          {currentPage === 'Performance' && activePreset && (
-            <PerformanceView
-              activePreset={activePreset}
-              onApplyTweaks={handleApplyPerformanceTweaks}
-              onSendAdbFps={handleSendAdbFps}
-              onSendAdbDpi={handleSendAdbDpi}
-            />
+          {currentPage === 'Performance' && (
+            activePreset ? (
+              <PerformanceView
+                activePreset={activePreset}
+                onApplyTweaks={handleApplyPerformanceTweaks}
+                onSendAdbFps={handleSendAdbFps}
+                onSendAdbDpi={handleSendAdbDpi}
+              />
+            ) : (
+              <div className="p-12 text-center bg-[#141419] rounded-2xl border border-[#252733]">
+                <p className="text-white font-bold text-base">No Active Profile Selected</p>
+                <p className="text-xs text-[#8892b0] mt-1">Please create a new profile using "+ New" in the top bar to configure core performance.</p>
+              </div>
+            )
           )}
 
           {currentPage === 'Macro' && (
@@ -474,6 +574,7 @@ export const App: React.FC = () => {
               onLog={handleAddLog}
               activeSnip={activeSnip}
               onOpenSnipper={() => setIsSnipperOpen(true)}
+              lang={lang}
             />
           )}
 
@@ -540,14 +641,49 @@ export const App: React.FC = () => {
       />
 
       {/* New Preset Profile Modal */}
-      {activePreset && (
-        <PresetModal
-          isOpen={isPresetModalOpen}
-          onClose={() => setIsPresetModalOpen(false)}
-          onSave={handleSavePreset}
-          basePreset={activePreset}
-        />
-      )}
+      <PresetModal
+        isOpen={isPresetModalOpen}
+        onClose={() => setIsPresetModalOpen(false)}
+        onSave={handleSavePreset}
+        basePreset={activePreset || undefined}
+      />
+
+      {/* Confirm Modal for Profile Deletion */}
+      <ConfirmModal
+        isOpen={!!profileToDelete}
+        title={`Delete Profile '${profileToDelete}'?`}
+        message={`Are you sure you want to delete profile '${profileToDelete}'? All custom macro graphs, keybinds, and visual settings in this profile will be permanently removed.`}
+        type="danger"
+        confirmText="Yes, Delete Profile"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDeletePreset}
+        onCancel={() => setProfileToDelete(null)}
+      />
+
+      {/* Confirm Modal for Emulator Deletion */}
+      <ConfirmModal
+        isOpen={!!emuToDelete}
+        title={`Delete Emulator '${emuToDelete?.name}'?`}
+        message={`Are you sure you want to remove emulator instance '${emuToDelete?.name}' (ADB Port: ${emuToDelete?.adbPort}) from your environment list?`}
+        type="danger"
+        confirmText="Yes, Delete Emulator"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDeleteEmulator}
+        onCancel={() => setEmuToDelete(null)}
+      />
+
+      {/* Warning Modal when trying to delete a Running Emulator */}
+      <ConfirmModal
+        isOpen={!!emuRunningWarning}
+        title="Cannot Delete Running Emulator"
+        message={emuRunningWarning || 'Emulator is currently running.'}
+        subMessage="Action Required: Please click 'TERMINATE EMULATOR' on the dashboard or shut down the emulator process before attempting deletion."
+        type="warning"
+        confirmText="Understood"
+        cancelText="Close"
+        onConfirm={() => setEmuRunningWarning(null)}
+        onCancel={() => setEmuRunningWarning(null)}
+      />
     </div>
   );
 };
