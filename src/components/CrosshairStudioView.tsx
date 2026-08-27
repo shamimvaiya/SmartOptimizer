@@ -458,7 +458,7 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
                     min="8"
                     max="64"
                     step="1"
-                    value={crosshairConfig.customSettings.size}
+                    value={crosshairConfig.customSettings.size ?? 24}
                     onChange={(e) => handleUpdateSetting('size', parseInt(e.target.value))}
                     className="w-full h-1.5 bg-[#1f202b] rounded-lg appearance-none cursor-pointer accent-[#39ff14]"
                   />
@@ -475,7 +475,7 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
                     min="1"
                     max="8"
                     step="1"
-                    value={crosshairConfig.customSettings.thickness}
+                    value={crosshairConfig.customSettings.thickness ?? 2}
                     onChange={(e) => handleUpdateSetting('thickness', parseInt(e.target.value))}
                     className="w-full h-1.5 bg-[#1f202b] rounded-lg appearance-none cursor-pointer accent-[#00e5ff]"
                   />
@@ -492,7 +492,7 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
                     min="1"
                     max="5"
                     step="1"
-                    value={crosshairConfig.customSettings.outlineThickness || 1}
+                    value={crosshairConfig.customSettings.outlineThickness ?? 1}
                     onChange={(e) => handleUpdateSetting('outlineThickness', parseInt(e.target.value))}
                     className="w-full h-1.5 bg-[#1f202b] rounded-lg appearance-none cursor-pointer accent-[#d500f9]"
                   />
@@ -509,7 +509,7 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
                     min="0"
                     max="25"
                     step="1"
-                    value={crosshairConfig.customSettings.glowIntensity || 10}
+                    value={crosshairConfig.customSettings.glowIntensity ?? 10}
                     onChange={(e) => handleUpdateSetting('glowIntensity', parseInt(e.target.value))}
                     className="w-full h-1.5 bg-[#1f202b] rounded-lg appearance-none cursor-pointer accent-[#ffd600]"
                   />
@@ -526,7 +526,7 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
                     min="0"
                     max="30"
                     step="1"
-                    value={crosshairConfig.customSettings.gap}
+                    value={crosshairConfig.customSettings.gap ?? 0}
                     onChange={(e) => handleUpdateSetting('gap', parseInt(e.target.value))}
                     className="w-full h-1.5 bg-[#1f202b] rounded-lg appearance-none cursor-pointer accent-[#ff007f]"
                   />
@@ -543,7 +543,7 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
                     min="1"
                     max="8"
                     step="1"
-                    value={crosshairConfig.customSettings.dotSize}
+                    value={crosshairConfig.customSettings.dotSize ?? 3}
                     onChange={(e) => handleUpdateSetting('dotSize', parseInt(e.target.value))}
                     className="w-full h-1.5 bg-[#1f202b] rounded-lg appearance-none cursor-pointer accent-[#ffd600]"
                   />
@@ -560,7 +560,7 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
                     min="0.2"
                     max="1.0"
                     step="0.05"
-                    value={crosshairConfig.customSettings.opacity}
+                    value={crosshairConfig.customSettings.opacity ?? 1}
                     onChange={(e) => handleUpdateSetting('opacity', parseFloat(e.target.value))}
                     className="w-full h-1.5 bg-[#1f202b] rounded-lg appearance-none cursor-pointer accent-[#39ff14]"
                   />
@@ -577,7 +577,7 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
                     min="0"
                     max="360"
                     step="5"
-                    value={crosshairConfig.customSettings.rotation}
+                    value={crosshairConfig.customSettings.rotation ?? 0}
                     onChange={(e) => handleUpdateSetting('rotation', parseInt(e.target.value))}
                     className="w-full h-1.5 bg-[#1f202b] rounded-lg appearance-none cursor-pointer accent-[#00e5ff]"
                   />
