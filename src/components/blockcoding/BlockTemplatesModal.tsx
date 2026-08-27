@@ -32,19 +32,19 @@ const TEMPLATES: TemplateOption[] = [
     icon: <Crosshair className="w-5 h-5 text-emerald-400" />,
     color: '#00e676',
     generateBlocks: () => [
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'event_start')!),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'condition_color_found')!, {
+      createBlockInstance('event_start'),
+      createBlockInstance('condition_color_found', {
         regionX: 860,
         regionY: 440,
         width: 200,
         height: 200,
         color: '#39FF14',
       }),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'action_human_click')!, {
+      createBlockInstance('action_human_click', {
         button: 'left',
         jitterRadius: 2,
       }),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'timing_delay')!, {
+      createBlockInstance('timing_delay', {
         durationMs: 45,
         jitterMs: 12,
       }),
@@ -58,16 +58,16 @@ const TEMPLATES: TemplateOption[] = [
     icon: <Zap className="w-5 h-5 text-yellow-400" />,
     color: '#ffd600',
     generateBlocks: () => [
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'event_key_pressed')!, { key: 'F6' }),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'loop_repeat_count')!, {
+      createBlockInstance('event_key_pressed', { key: 'F6' }),
+      createBlockInstance('loop_repeat_count', {
         count: 20,
         counterVar: 'burst',
       }),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'action_human_click')!, {
+      createBlockInstance('action_human_click', {
         button: 'left',
         jitterRadius: 3,
       }),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'timing_delay')!, {
+      createBlockInstance('timing_delay', {
         durationMs: 25,
         jitterMs: 8,
       }),
@@ -81,17 +81,17 @@ const TEMPLATES: TemplateOption[] = [
     icon: <Smartphone className="w-5 h-5 text-cyan-400" />,
     color: '#00e5ff',
     generateBlocks: () => [
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'event_start')!),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'adb_tap')!, { x: 960, y: 540 }),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'timing_delay')!, { durationMs: 800 }),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'adb_swipe')!, {
+      createBlockInstance('event_start'),
+      createBlockInstance('adb_tap', { x: 960, y: 540 }),
+      createBlockInstance('timing_delay', { durationMs: 800 }),
+      createBlockInstance('adb_swipe', {
         startX: 500,
         startY: 800,
         endX: 500,
         endY: 300,
         durationMs: 350,
       }),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'action_log_message')!, {
+      createBlockInstance('action_log_message', {
         message: 'Farming round completed successfully',
       }),
     ],
@@ -104,18 +104,18 @@ const TEMPLATES: TemplateOption[] = [
     icon: <Repeat className="w-5 h-5 text-purple-400" />,
     color: '#d500f9',
     generateBlocks: () => [
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'event_start')!),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'loop_repeat_count')!, { count: 50 }),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'action_move_mouse')!, {
+      createBlockInstance('event_start'),
+      createBlockInstance('loop_repeat_count', { count: 50 }),
+      createBlockInstance('action_move_mouse', {
         x: 960,
         y: 540,
         smooth: true,
       }),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'action_press_key')!, {
+      createBlockInstance('action_press_key', {
         key: 'W',
         durationMs: 80,
       }),
-      createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'timing_delay')!, {
+      createBlockInstance('timing_delay', {
         durationMs: 1500,
         jitterMs: 400,
       }),

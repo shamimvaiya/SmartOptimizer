@@ -3,12 +3,12 @@ import cors from 'cors';
 import path from 'path';
 import { exec, spawn } from 'child_process';
 import { createServer as createViteServer } from 'vite';
-import { storage, PresetProfile, CustomActionDefinition, InstalledEmulatorInfo, GlobalConfig } from './server/storage.js';
+import { storage, PresetProfile, CustomActionDefinition, InstalledEmulatorInfo, GlobalConfig } from './server/storage';
 
 // Active runtime state
 const runtimeState = {
   activeEmulator: null as (InstalledEmulatorInfo & { pid?: number; launchedAt?: string }) | null,
-  isEngineActive: true,
+  isEngineActive: false,
   isMacroRunning: false,
   activeExecutingNodeId: null as string | null,
   driverConnected: true,
@@ -262,6 +262,14 @@ async function startServer() {
     }
     storage.addLog(`[Engine] Optimization Engine & background daemons reset successfully.`);
     res.json({ success: true, message: 'Engine reset complete' });
+  });
+
+  app.post('/api/factory-reset', (req, res) => {
+    runtimeState.isEngineActive = false;
+    runtimeState.isMacroRunning = false;
+    runtimeState.activeEmulator = null;
+    storage.factoryReset();
+    res.json({ success: true, message: 'Factory reset completed' });
   });
 
   app.post('/api/engine/optimize-memory', (req, res) => {
@@ -547,24 +555,24 @@ Return a valid JSON object strictly matching this schema:
   ]
 }`;
 
-          const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: `Generate a Sketchware Block Macro for: "${prompt}"\nCurrent variables: ${JSON.stringify(currentVariables || [])}`,
-            config: {
-              systemInstruction,
-              responseMimeType: 'application/json',
-            },
-          });
+        const response = await ai.models.generateContent({
+          model: 'gemini-1.5-flash',
+          contents: `Generate a Sketchware Block Macro for: "${prompt}"\nCurrent variables: ${JSON.stringify(currentVariables || [])}`,
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+          },
+        });
 
           const rawText = response.text || '{}';
           const parsed = JSON.parse(rawText);
           return res.json({ success: true, ...parsed });
         } else if (mode === 'validate_macro') {
-          const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: `Validate this Visual Macro for logical correctness, infinite loop dangers, missing parameters, and efficiency:\nBlocks: ${JSON.stringify(currentBlocks || [])}\nVariables: ${JSON.stringify(currentVariables || [])}`,
-            config: {
-              systemInstruction: `Analyze the macro stack and respond in JSON with:
+        const response = await ai.models.generateContent({
+          model: 'gemini-1.5-flash',
+          contents: `Validate this Visual Macro for logical correctness, infinite loop dangers, missing parameters, and efficiency:\nBlocks: ${JSON.stringify(currentBlocks || [])}\nVariables: ${JSON.stringify(currentVariables || [])}`,
+          config: {
+            systemInstruction: `Analyze the macro stack and respond in JSON with:
 {
   "isValid": boolean,
   "warnings": ["string"],
@@ -572,32 +580,32 @@ Return a valid JSON object strictly matching this schema:
   "suggestions": ["string"],
   "complexityScore": number (1 to 100)
 }`,
-              responseMimeType: 'application/json',
-            },
-          });
+            responseMimeType: 'application/json',
+          },
+        });
           const parsed = JSON.parse(response.text || '{}');
           return res.json({ success: true, ...parsed });
         } else if (mode === 'explain_macro') {
-          const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: `Explain the visual block macro logic in clear structured steps:\nBlocks: ${JSON.stringify(currentBlocks || [])}`,
-          });
+        const response = await ai.models.generateContent({
+          model: 'gemini-1.5-flash',
+          contents: `Explain the visual block macro logic in clear structured steps:\nBlocks: ${JSON.stringify(currentBlocks || [])}`,
+        });
           return res.json({ success: true, explanation: response.text });
         } else if (mode === 'debug_assist') {
-          const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: `Diagnose this runtime error and provide the root cause and a solution:\nError: ${JSON.stringify(errorContext || {})}\nExecution Trace: ${JSON.stringify(executionTrace || [])}\nBlocks: ${JSON.stringify(currentBlocks || [])}`,
-            config: {
-              systemInstruction: `Respond in JSON with:
+        const response = await ai.models.generateContent({
+          model: 'gemini-1.5-flash',
+          contents: `Diagnose this runtime error and provide the root cause and a solution:\nError: ${JSON.stringify(errorContext || {})}\nExecution Trace: ${JSON.stringify(executionTrace || [])}\nBlocks: ${JSON.stringify(currentBlocks || [])}`,
+          config: {
+            systemInstruction: `Respond in JSON with:
 {
   "errorSummary": "string",
   "rootCause": "string",
   "suggestedFix": "string",
   "recommendedBlockChanges": []
 }`,
-              responseMimeType: 'application/json',
-            },
-          });
+            responseMimeType: 'application/json',
+          },
+        });
           const parsed = JSON.parse(response.text || '{}');
           return res.json({ success: true, ...parsed });
         }

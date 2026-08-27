@@ -15,6 +15,7 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
+  Crosshair,
 } from 'lucide-react';
 import { TelemetryData } from '../types';
 import { Language, translations } from '../i18n/translations';
@@ -51,11 +52,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navItems = [
     { id: 'Dashboard', label: t.navDashboard, icon: Zap, color: '#39ff14' },
+    { id: 'Crosshair', label: isBn ? 'ক্রসহায়ার' : 'Crosshair', icon: Crosshair, color: '#39ff14' },
     { id: 'LogicIntelligence', label: t.navLogicIntelligence, icon: Cpu, color: '#00e5ff' },
     { id: 'Calibration', label: t.navCalibration, icon: Crop, color: '#39ff14' },
     { id: 'Macro', label: t.navMacroStudio, icon: Palette, color: '#d500f9' },
     { id: 'Performance', label: t.navPerformance, icon: Rocket, color: '#00e5ff' },
-    { id: 'CsharpWpf', label: t.navCsharpWpf, icon: FileCode, color: '#ffd600' },
     { id: 'Settings', label: t.navSettings, icon: Settings, color: '#ffb300' },
   ];
 
@@ -164,89 +165,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
             );
           })}
 
-          {/* Quick In-Game HUD Toggle */}
-          <div className="pt-2">
-            <button
-              id="toggle-hud-sidebar-btn"
-              onClick={onToggleOverlay}
-              className={`w-full rounded-xl border flex items-center transition-all cursor-pointer ${
-                isCollapsed ? 'h-11 justify-center' : 'py-2 px-3 justify-between'
-              } ${
-                isOverlayOpen
-                  ? 'bg-[#002b30] border-[#00e5ff] text-[#00e5ff] shadow-[0_0_12px_rgba(0,229,255,0.25)]'
-                  : 'bg-[#16161e] border-[#252733] text-[#8892b0] hover:text-[#00e5ff]'
-              }`}
-              title={isBn ? 'ইন-গেম স্টিলথ HUD ওভারলে টগল' : 'Toggle In-Game Stealth HUD Overlay'}
-            >
-              <div className="flex items-center space-x-2">
-                <Monitor className="w-4 h-4 text-[#00e5ff] shrink-0" />
-                {!isCollapsed && <span className="text-xs font-bold">{t.inGameHud}</span>}
-              </div>
-              {!isCollapsed && (
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[9px] font-black ${
-                    isOverlayOpen ? 'bg-[#00e5ff] text-black' : 'bg-[#252733] text-[#8892b0]'
-                  }`}
-                >
-                  {isOverlayOpen ? t.hudVisible : t.hudHidden}
-                </span>
-              )}
-            </button>
-          </div>
+          {/* Quick In-Game HUD Toggle - REMOVED AS REQUESTED */}
         </nav>
       </div>
 
       {/* Footer: Live Telemetry & System Controls */}
       <div className="p-2 space-y-2 border-t border-[#1f202b]/70 bg-[#0c0d12]">
         {!isCollapsed ? (
-          <>
-            {/* Expanded Telemetry Box */}
-            <div className="bg-[#141620] rounded-xl p-2.5 border border-[#232738]">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <div className="text-[9px] font-bold text-[#667085] uppercase">{t.cpuLoad}</div>
-                  <div className="text-xs font-bold text-[#00e5ff] mt-0.5">
-                    {telemetry ? `${telemetry.cpuPercentage}%` : '8%'}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[9px] font-bold text-[#667085] uppercase">{t.ramUsage}</div>
-                  <div className="text-xs font-bold text-[#39ff14] mt-0.5">
-                    {telemetry ? `${telemetry.ramUsageMb} MB` : '860 MB'}
-                  </div>
+          <div className="bg-[#141620] rounded-xl p-2.5 border border-[#232738]">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className="text-[9px] font-bold text-[#667085] uppercase">{t.cpuLoad}</div>
+                <div className="text-xs font-bold text-[#00e5ff] mt-0.5">
+                  {telemetry ? `${telemetry.cpuPercentage}%` : '8%'}
                 </div>
               </div>
-
-              <div className="mt-1.5 pt-1.5 border-t border-[#1f2330] flex items-center justify-between text-[9px]">
-                <span className="text-[#667085] font-semibold flex items-center gap-1">
-                  <Shield className="w-2.5 h-2.5 text-[#39ff14]" />
-                  {t.kernelIoctl}
-                </span>
-                <span className="text-[#39ff14] font-bold">READY</span>
+              <div className="text-right">
+                <div className="text-[9px] font-bold text-[#667085] uppercase">{t.ramUsage}</div>
+                <div className="text-xs font-bold text-[#39ff14] mt-0.5">
+                  {telemetry ? `${telemetry.ramUsageMb} MB` : '860 MB'}
+                </div>
               </div>
             </div>
 
-            {/* Restart Engine Button */}
-            <button
-              id="btn-restart-engine"
-              onClick={onResetSystem}
-              className="w-full h-8 rounded-xl bg-[#241416] hover:bg-[#34181b] border border-[#ff4444]/60 text-[#ff4444] font-bold text-[11px] flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
-            >
-              <Power className="w-3 h-3" />
-              <span>{t.restartEngine}</span>
-            </button>
-
-            {/* Exit Application Button */}
-            <button
-              id="btn-exit-app"
-              onClick={onExitApplication || onResetSystem}
-              className="w-full h-8 rounded-xl bg-[#171216] hover:bg-[#281520] border border-[#8892b0]/40 text-[#8892b0] hover:text-[#ff0055] font-black text-[11px] flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
-              title="Quit / Exit Application"
-            >
-              <LogOut className="w-3 h-3" />
-              <span>{t.exitApp}</span>
-            </button>
-          </>
+            <div className="mt-1.5 pt-1.5 border-t border-[#1f2330] flex items-center justify-between text-[9px]">
+              <span className="text-[#667085] font-semibold flex items-center gap-1">
+                <Shield className="w-2.5 h-2.5 text-[#39ff14]" />
+                {t.kernelIoctl}
+              </span>
+              <span className="text-[#39ff14] font-bold">READY</span>
+            </div>
+          </div>
         ) : (
           /* Collapsed Mini Footer Actions */
           <div className="space-y-1.5 flex flex-col items-center">
@@ -256,13 +205,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               title={isBn ? 'সাইডবার বড় করুন' : 'Expand Sidebar'}
             >
               <PanelLeftOpen className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onResetSystem}
-              className="w-10 h-10 rounded-xl bg-[#241416] hover:bg-[#34181b] text-[#ff4444] flex items-center justify-center transition-colors cursor-pointer"
-              title={t.restartEngine}
-            >
-              <Power className="w-4 h-4" />
             </button>
           </div>
         )}

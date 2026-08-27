@@ -59,7 +59,7 @@
   animation: breathingPulse 2.8s infinite ease-in-out;
 }
 
-/* Neon Marquee Scrolling Animation */
+/* Seamless Infinite Marquee Scrolling Animation */
 @keyframes marqueeScroll {
   0% {
     transform: translateX(0%);
@@ -67,4 +67,32 @@
   100% {
     transform: translateX(-50%);
   }
+}
+
+.animate-marquee-infinite {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: marqueeScroll 12s linear infinite;
+}
+
+.animate-marquee-infinite:hover {
+  animation-play-state: paused;
+}
+
+/* Ultra-thin Auto-Hiding Scrollbar */
+.auto-hide-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.auto-hide-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.auto-hide-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+.auto-hide-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(57, 255, 20, 0.5);
 }

@@ -9,7 +9,6 @@ export interface TranslationDictionary {
   navCalibration: string;
   navMacroStudio: string;
   navPerformance: string;
-  navCsharpWpf: string;
   navSettings: string;
   inGameHud: string;
   hudVisible: string;
@@ -29,6 +28,7 @@ export interface TranslationDictionary {
   language: string;
 
   // Macro Studio
+  actionLibrary: string;
   tabNodeGraph: string;
   tabBlockCoding: string;
   tabCsharpTranspile: string;
@@ -95,6 +95,9 @@ export interface TranslationDictionary {
   pinned: string;
   statusActive: string;
   statusIdle: string;
+  clearRamCache: string;
+  initOptimize: string;
+  noEmulatorWarning: string;
 }
 
 export const translations: Record<Language, TranslationDictionary> = {
@@ -104,9 +107,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     navDashboard: 'Dashboard',
     navLogicIntelligence: 'Logic & Intelligence',
     navCalibration: 'Snipping & Calibration',
-    navMacroStudio: 'Visual Macro Studio',
+    navMacroStudio: 'Macro Studio',
     navPerformance: 'Performance Engine',
-    navCsharpWpf: 'C# / WPF .NET 8 Code',
     navSettings: 'Settings & Stealth HUD',
     inGameHud: 'In-Game HUD',
     hudVisible: 'VISIBLE',
@@ -123,6 +125,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     newProfile: 'New Profile',
     deleteProfile: 'Delete',
     language: 'Language',
+    actionLibrary: 'Action Library',
 
     tabNodeGraph: 'Visual Node Graph',
     tabBlockCoding: 'Block Coding Mode',
@@ -187,6 +190,9 @@ export const translations: Record<Language, TranslationDictionary> = {
     pinned: 'PINNED',
     statusActive: 'ACTIVE',
     statusIdle: 'IDLE',
+    clearRamCache: 'Clear RAM Cache',
+    initOptimize: 'Initialize & Optimize System',
+    noEmulatorWarning: 'Please add and select an emulator first!',
   },
   bn: {
     appTitle: 'এইম/অপট',
@@ -194,9 +200,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     navDashboard: 'ড্যাশবোর্ড',
     navLogicIntelligence: 'লজিক ও ইন্টেলিজেন্স',
     navCalibration: 'স্নিপিং ও ক্যালিব্রেশন',
-    navMacroStudio: 'ভিজুয়াল ম্যাক্রো স্টুডিও',
+    navMacroStudio: 'ম্যাক্রো স্টুডিও',
     navPerformance: 'পারফরম্যান্স ইঞ্জিন',
-    navCsharpWpf: 'সি# / WPF ডটনেট ৮ কোড',
     navSettings: 'সেটিংস ও স্টিলথ HUD',
     inGameHud: 'ইন-গেম HUD',
     hudVisible: 'চালু',
@@ -213,6 +218,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     newProfile: 'নতুন প্রোফাইল',
     deleteProfile: 'মুছুন',
     language: 'ভাষা',
+    actionLibrary: 'অ্যাকশন লাইব্রেরী',
 
     tabNodeGraph: 'ভিজুয়াল নোড গ্রাফ',
     tabBlockCoding: 'ব্লক কোডিং মোড',
@@ -277,5 +283,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     pinned: 'পিন করা',
     statusActive: 'সক্রিয়',
     statusIdle: 'নিষ্ক্রিয়',
+    clearRamCache: 'ক্লিয়ার র‍্যাম ক্যাশ',
+    initOptimize: 'ইনিশিয়ালাইজ ও অপ্টিমাইজ সিস্টেম',
+    noEmulatorWarning: 'দয়া করে আগে একটি ইমুলেটর যোগ করুন!',
   },
 };

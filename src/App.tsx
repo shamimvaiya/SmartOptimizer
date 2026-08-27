@@ -4,17 +4,20 @@ import { Header } from './components/Header';
 import { DashboardView } from './components/DashboardView';
 import { PerformanceView } from './components/PerformanceView';
 import { VisualMacroStudio } from './components/VisualMacroStudio';
+import { MacroHubView } from './components/MacroHubView';
 import { SettingsOverlayView } from './components/SettingsOverlayView';
 import { StealthHUDOverlay } from './components/StealthHUDOverlay';
 import { AddEmulatorModal } from './components/AddEmulatorModal';
 import { PresetModal } from './components/PresetModal';
 import { SmartSnippingOverlay } from './components/SmartSnippingOverlay';
 import { CalibrationView } from './components/CalibrationView';
-import { CsharpWpfCodeView } from './components/CsharpWpfCodeView';
 import { LogicIntelligenceView } from './components/LogicIntelligenceView';
+import { CrosshairStudioView } from './components/CrosshairStudioView';
+import { ScreenCrosshairOverlay } from './components/ScreenCrosshairOverlay';
 import { ConfirmModal } from './components/ConfirmModal';
 import { api } from './services/api';
-import { GlobalConfig, InstalledEmulatorInfo, MacroNode, PresetProfile, TelemetryData, SnipData, VisualProcessingConfig } from './types';
+import { GlobalConfig, InstalledEmulatorInfo, MacroNode, PresetProfile, TelemetryData, SnipData, VisualProcessingConfig, CrosshairConfig } from './types';
+import { DEFAULT_CROSSHAIR_CONFIG } from './data/crosshairCatalog';
 import { Language, translations } from './i18n/translations';
 
 export const App: React.FC = () => {
@@ -26,7 +29,7 @@ export const App: React.FC = () => {
   const [presets, setPresets] = useState<PresetProfile[]>([]);
   const [activePreset, setActivePreset] = useState<PresetProfile | null>(null);
   const [emulators, setEmulators] = useState<InstalledEmulatorInfo[]>([]);
-  const [selectedEmulatorId, setSelectedEmulatorId] = useState<string>('emu_bs5');
+  const [selectedEmulatorId, setSelectedEmulatorId] = useState<string>('');
   const [logs, setLogs] = useState<string[]>([]);
   const [isOverlayOpen, setIsOverlayOpen] = useState<boolean>(true);
   const [isAddEmulatorOpen, setIsAddEmulatorOpen] = useState<boolean>(false);
@@ -36,6 +39,24 @@ export const App: React.FC = () => {
   const [profileToDelete, setProfileToDelete] = useState<string | null>(null);
   const [emuToDelete, setEmuToDelete] = useState<InstalledEmulatorInfo | null>(null);
   const [emuRunningWarning, setEmuRunningWarning] = useState<string | null>(null);
+  const [crosshairConfig, setCrosshairConfig] = useState<CrosshairConfig>(() => {
+    try {
+      const saved = localStorage.getItem('aimopt_crosshair_config');
+      return saved ? JSON.parse(saved) : DEFAULT_CROSSHAIR_CONFIG;
+    } catch (e) {
+      return DEFAULT_CROSSHAIR_CONFIG;
+    }
+  });
+
+  const handleUpdateCrosshairConfig = (newConfig: CrosshairConfig) => {
+    setCrosshairConfig(newConfig);
+    try {
+      localStorage.setItem('aimopt_crosshair_config', JSON.stringify(newConfig));
+    } catch (e) {}
+    handleAddLog(
+      `[Crosshair] Config updated: ${newConfig.selectedDesignId} (Enabled: ${newConfig.isEnabled ? 'YES' : 'NO'}, Emulator Hook: ${newConfig.isActivatedToEmulator ? 'ACTIVE' : 'OFF'})`
+    );
+  };
   const [activeSnip, setActiveSnip] = useState<SnipData | null>({
     x: 860,
     y: 440,
@@ -94,6 +115,11 @@ export const App: React.FC = () => {
   // Global Hotkey Listener for Stealth HUD
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || (e.target as HTMLElement)?.isContentEditable) {
+        return;
+      }
+
       const currentHotkey = (
         activePreset?.overlay?.toggleHotkey ||
         globalConfig?.defaultHotkey ||
@@ -113,6 +139,44 @@ export const App: React.FC = () => {
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [activePreset, globalConfig]);
+
+  // Global Hotkey Listener for Crosshair Toggle
+  useEffect(() => {
+    const handleCrosshairHotkey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || (e.target as HTMLElement)?.isContentEditable) {
+        return;
+      }
+
+      const currentCrosshairHotkey = (
+        crosshairConfig?.toggleHotkey || 'INSERT'
+      ).toUpperCase();
+
+      let pressedKey = e.key.toUpperCase();
+      if (pressedKey === ' ') pressedKey = 'SPACE';
+      if (pressedKey === 'ESCAPE') pressedKey = 'ESC';
+      if (pressedKey === 'CONTROL') pressedKey = 'CTRL';
+      if (pressedKey === 'ALT') pressedKey = 'ALT';
+      if (pressedKey === 'SHIFT') pressedKey = 'SHIFT';
+
+      if (pressedKey === currentCrosshairHotkey) {
+        e.preventDefault();
+        const updated = {
+          ...crosshairConfig,
+          isEnabled: !crosshairConfig.isEnabled,
+        };
+        handleUpdateCrosshairConfig(updated);
+        handleAddLog(
+          `[Crosshair] Hotkey '${pressedKey}' pressed -> Crosshair ${
+            updated.isEnabled ? 'ENABLED' : 'DISABLED'
+          }`
+        );
+      }
+    };
+
+    window.addEventListener('keydown', handleCrosshairHotkey);
+    return () => window.removeEventListener('keydown', handleCrosshairHotkey);
+  }, [crosshairConfig]);
 
   // Log append helper
   const handleAddLog = (msg: string) => {
@@ -266,6 +330,10 @@ export const App: React.FC = () => {
   };
 
   const handleOptimizeEngine = async () => {
+    if (emulators.length === 0) {
+      alert(translations[lang].noEmulatorWarning);
+      return;
+    }
     try {
       const res = await api.toggleEngine();
       const tel = await api.getTelemetry();
@@ -276,6 +344,10 @@ export const App: React.FC = () => {
   };
 
   const handleFlushRam = async () => {
+    if (emulators.length === 0) {
+      alert(translations[lang].noEmulatorWarning);
+      return;
+    }
     try {
       const res = await api.optimizeMemory();
       if (res.success) {
@@ -358,14 +430,17 @@ export const App: React.FC = () => {
 
   // Settings handlers
   const handleSaveHotkey = async (newHotkey: string) => {
-    if (!activePreset) return;
-    const updated = {
-      ...activePreset,
-      overlay: { ...activePreset.overlay, toggleHotkey: newHotkey },
-    };
-    await handleSavePreset(updated);
+    if (activePreset) {
+      const updated = {
+        ...activePreset,
+        overlay: { ...activePreset.overlay, toggleHotkey: newHotkey },
+      };
+      await handleSavePreset(updated);
+    }
+    
     if (globalConfig) {
       await api.updateConfig({ defaultHotkey: newHotkey });
+      setGlobalConfig({ ...globalConfig, defaultHotkey: newHotkey });
     }
   };
 
@@ -406,6 +481,18 @@ export const App: React.FC = () => {
     await loadInitialData();
   };
 
+  const handleHardResetApp = async () => {
+    try {
+      await api.factoryReset();
+    } catch (e) {}
+    localStorage.clear();
+    // Set a flag to prevent MacroHubView from re-loading hardcoded defaults
+    localStorage.setItem('aimopt_is_initialized', 'true');
+    localStorage.setItem('aimopt_saved_macros', '[]');
+    localStorage.setItem('aimopt_macro_hub_categories', '[]');
+    window.location.reload();
+  };
+
   // Visual processing config saving
   const handleSaveVisualConfig = async (config: VisualProcessingConfig) => {
     if (!activePreset) return;
@@ -414,6 +501,15 @@ export const App: React.FC = () => {
       visualProcessing: config,
     };
     await handleSavePreset(updated);
+  };
+
+  const handleUpdateGlobalConfig = async (partial: Partial<GlobalConfig>) => {
+    try {
+      const res = await api.updateConfig(partial);
+      setGlobalConfig(res.globalConfig);
+    } catch (e) {
+      console.error('Update config failed:', e);
+    }
   };
 
   // Get Page Title
@@ -501,6 +597,20 @@ export const App: React.FC = () => {
               onDeleteEmulator={handleDeleteEmulator}
               onTogglePinEmulator={handleTogglePinEmulator}
               lang={lang}
+              activePreset={activePreset}
+              crosshairConfig={crosshairConfig}
+              onUpdateCrosshairConfig={handleUpdateCrosshairConfig}
+              onOpenCrosshairStudio={() => setCurrentPage('Crosshair')}
+            />
+          )}
+
+          {currentPage === 'Crosshair' && (
+            <CrosshairStudioView
+              crosshairConfig={crosshairConfig}
+              onUpdateConfig={handleUpdateCrosshairConfig}
+              onNavigateToDashboard={() => setCurrentPage('Dashboard')}
+              onLog={handleAddLog}
+              lang={lang}
             />
           )}
 
@@ -565,31 +675,32 @@ export const App: React.FC = () => {
           )}
 
           {currentPage === 'Macro' && (
-            <VisualMacroStudio
-              initialGraph={activePreset?.macroGraph || []}
-              onSaveGraph={handleSaveGraph}
-              onRunMacro={handleRunMacro}
-              onStopMacro={handleStopMacro}
-              isMacroRunning={isMacroRunning}
-              onLog={handleAddLog}
-              activeSnip={activeSnip}
-              onOpenSnipper={() => setIsSnipperOpen(true)}
-              lang={lang}
+            <MacroHubView
+              isBn={lang === 'bn'}
+              onExecuteToEmulator={(macro) => {
+                handleAddLog(`[Macro Engine] Injected & armed '${macro.name}' on key [${macro.hotkey}] in background emulator process.`);
+              }}
             />
           )}
 
-          {currentPage === 'CsharpWpf' && <CsharpWpfCodeView />}
-
-          {currentPage === 'Settings' && activePreset && globalConfig && (
+          {currentPage === 'Settings' && globalConfig && (
             <SettingsOverlayView
               globalConfig={globalConfig}
               activePreset={activePreset}
+              crosshairConfig={crosshairConfig}
               onSaveHotkey={handleSaveHotkey}
+              onSaveCrosshairHotkey={(hotkey) => {
+                const updated = { ...crosshairConfig, toggleHotkey: hotkey };
+                handleUpdateCrosshairConfig(updated);
+              }}
               onToggleAutoHide={handleToggleAutoHide}
               onUpdateProcessOverride={handleUpdateProcessOverride}
               onCreatePresetModal={() => setIsPresetModalOpen(true)}
               onDuplicatePreset={handleDuplicatePreset}
               onDeletePreset={handleDeletePreset}
+              onUpdateGlobalConfig={handleUpdateGlobalConfig}
+              onHardResetApp={handleHardResetApp}
+              lang={lang}
             />
           )}
         </main>
@@ -631,6 +742,23 @@ export const App: React.FC = () => {
         onClose={() => setIsOverlayOpen(false)}
         autoHideEnabled={activePreset?.overlay?.enableAutoHide ?? true}
         hotkey={activePreset?.overlay?.toggleHotkey || globalConfig?.defaultHotkey || 'HOME'}
+        logs={logs}
+      />
+
+      {/* Screen & Emulator Centered In-Game Crosshair Overlay */}
+      <ScreenCrosshairOverlay
+        config={crosshairConfig}
+        onUpdateOffset={(offsetX, offsetY) => {
+          handleUpdateCrosshairConfig({
+            ...crosshairConfig,
+            customSettings: {
+              ...crosshairConfig.customSettings,
+              offsetX,
+              offsetY,
+            },
+          });
+        }}
+        isEmulatorRunning={telemetry?.isEmulatorRunning ?? false}
       />
 
       {/* Add Emulator Modal */}

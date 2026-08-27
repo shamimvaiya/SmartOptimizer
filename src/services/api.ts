@@ -140,6 +140,13 @@ export const api = {
     return res.json();
   },
 
+  async factoryReset(): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/factory-reset`, {
+      method: 'POST',
+    });
+    return res.json();
+  },
+
   async optimizeMemory(): Promise<{ success: boolean; freedMb: number }> {
     const res = await fetch(`${API_BASE}/engine/optimize-memory`, {
       method: 'POST',

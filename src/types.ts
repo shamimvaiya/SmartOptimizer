@@ -8,6 +8,142 @@ export interface CustomActionDefinition {
   csharpScript: string;
 }
 
+export interface CrosshairDesign {
+  id: string;
+  name: string;
+  category: 'esport' | 'dot' | 'circle' | 'sniper' | 'scifi' | 'minimal' | 'special';
+  description: string;
+  color: string;
+  size: number;
+  thickness: number;
+  gap: number;
+  dotSize?: number;
+  showDot?: boolean;
+  hasOutline?: boolean;
+  outlineColor?: string;
+  opacity: number;
+  rotation?: number;
+  isAnimated?: boolean;
+  animationType?: string;
+  shapeType:
+    | 'classic_cross'
+    | 'dot'
+    | 'dot_circle'
+    | 'circle'
+    | 'sniper_mil_dot'
+    | 'chevron'
+    | 'quad_chevron'
+    | 'diamond'
+    | 'hologram_ring'
+    | 'tri_vector'
+    | 'biohazard'
+    | 'falcon_wing'
+    | 'heavy_artillery'
+    | 'valkyrie'
+    | 'pulse_target'
+    | 'hexagon'
+    | 'cross_gap'
+    | 't_shape'
+    | 'box_cross'
+    | 'shuriken'
+    | 'apex_arrow'
+    | 'laser_cross'
+    | 'cyber_reticle'
+    | 'target_lock'
+    | 'stealth_optic'
+    | 'omega_cross'
+    | 'matrix_grid'
+    | 'predator_tri'
+    | 'dual_circle'
+    | 'shotgun_spread'
+    | 'clutch_reticle'
+    | 'assault_brackets'
+    | 'fire_dragon_vortex'
+    | 'cyber_pulsar_ring'
+    | 'quantum_glitch'
+    | 'plasma_core'
+    | 'sniper_predator_lock'
+    | 'neon_vortex'
+    | 'cyber_rage_tri'
+    | 'void_singularity'
+    | 'solar_flare_bloom'
+    | 'hyper_recoil_gyro'
+    | 'tactical_hud_hex'
+    | 'matrix_stream_reticle'
+    | 'nano_tech_focus'
+    | 'phoenix_wing'
+    | 'astral_nebula_dot'
+    | 'thunder_bolt_core'
+    | 'ghost_phantom_pulse'
+    | 'chakra_energy_orb'
+    | 'cyber_valkyrie_cross'
+    | 'drag_headshot_master'
+    | 'chrono_warp_optic'
+    | 'blaze_inferno_ring'
+    | 'shadow_assassin_x'
+    | 'titan_mech_target'
+    | 'prism_rainbow_laser'
+    | 'spectral_arrow_cross'
+    | 'hyper_drive_reticle'
+    | 'apex_overcharge_optic'
+    | 'frost_crystal_glaze'
+    | 'venom_viper_fang'
+    | string;
+}
+
+export interface CrosshairCustomSettings {
+  color: string;
+  size: number;
+  thickness: number;
+  gap: number;
+  dotSize: number;
+  showDot: boolean;
+  hasOutline: boolean;
+  outlineColor: string;
+  outlineThickness?: number;
+  opacity: number;
+  rotation: number;
+  offsetX: number;
+  offsetY: number;
+  pulseAnimation: boolean;
+  glowIntensity?: number;
+  ringThickness?: number;
+  vfxSpeed?: number;
+}
+
+export interface CrosshairConfig {
+  isEnabled: boolean;
+  isActivatedToEmulator: boolean;
+  selectedDesignId: string;
+  favoriteDesignIds?: string[];
+  customSettings: CrosshairCustomSettings;
+  toggleHotkey?: string;
+}
+
+export interface MacroProfileItem {
+  id: string;
+  name: string;
+  category: string;
+  descriptionEn: string;
+  descriptionBn: string;
+  usageGuideEn: string;
+  usageGuideBn: string;
+  inGameSettingsEn: string;
+  inGameSettingsBn: string;
+  developerGuideEn: string;
+  developerGuideBn: string;
+  hotkey: string;
+  isEnabled: boolean;
+  isExecuted: boolean;
+  codeScript: string;
+  tags: string[];
+  executionLayers: string[];
+  lastExecutedTime?: string;
+  author?: string;
+  version?: string;
+  createdDate?: string;
+}
+
 export interface InstalledEmulatorInfo {
   id: string;
   name: string;
@@ -208,6 +344,9 @@ export interface GhostMacroEvent {
 export interface GhostMacroFile {
   id: string;
   name: string;
+  description?: string;
+  tags?: string[];
+  isFavorite?: boolean;
   createdAt: string;
   totalDurationMs: number;
   eventsCount: number;
@@ -274,11 +413,18 @@ export interface LogEntry {
 }
 
 export type BlockCategory =
+  | 'motion'
+  | 'looks'
+  | 'sound'
   | 'events'
+  | 'control'
+  | 'sensing'
+  | 'operators'
+  | 'variables'
+  | 'myblocks'
   | 'actions'
   | 'conditions'
   | 'loops'
-  | 'variables'
   | 'math'
   | 'string'
   | 'boolean'
@@ -289,6 +435,8 @@ export type BlockCategory =
   | 'adb'
   | 'utility'
   | 'custom';
+
+export type BlockShape = 'hat' | 'command' | 'c_block' | 'reporter' | 'boolean';
 
 export type BlockSocketType = 'statement' | 'number' | 'string' | 'boolean' | 'variable' | 'any';
 
@@ -311,6 +459,8 @@ export interface BlockNode {
   category: BlockCategory;
   title: string;
   color: string;
+  shape?: BlockShape;
+  returnType?: 'statement' | 'number' | 'string' | 'boolean';
   icon?: string;
   description?: string;
   parameters: Record<string, any>;

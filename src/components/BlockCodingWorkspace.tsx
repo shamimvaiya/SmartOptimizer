@@ -1,110 +1,120 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Boxes,
   Play,
-  Pause,
-  RotateCcw,
+  Square,
   Sparkles,
   Download,
   Upload,
   History,
-  Code,
   ZoomIn,
   ZoomOut,
   Maximize2,
-  Minimize2,
-  Layers,
-  Terminal,
-  Grid,
   Trash2,
-  Copy,
-  FolderOpen,
-  Save,
-  Check,
-  AlertCircle,
-  FileCode,
-  Sliders,
-  Move,
-  Eye,
-  Bot,
-  Disc,
-  GitCompare,
+  Grid,
   Command,
-  Search,
 } from 'lucide-react';
 import {
-  BlockCategory,
   BlockNode,
   CustomBlockDefinition,
   DebuggerState,
-  ExecutionHistoryItem,
-  MacroNode,
   MacroVariable,
   MacroVersionSnapshot,
 } from '../types';
-import { BLOCK_CATALOG, createBlockInstance } from '../data/blockCatalog';
 import { BlockExecutionEngine } from '../utils/blockEngine';
 import { autoArrangeBlockHierarchy } from '../utils/blockAutoArranger';
-import { transpileBlocksToCSharp } from '../utils/scriptTranspiler';
 import { MacroExportPackage, validateAndParseMacroPackage } from '../utils/macroVersionManager';
-import { PuzzlePieceBlock } from './blockcoding/PuzzlePieceBlock';
-import { BlockCodingPalette } from './blockcoding/BlockCodingPalette';
-import { BlockDebuggerPanel } from './blockcoding/BlockDebuggerPanel';
+import { ScratchPaletteSidebar } from './blockcoding/ScratchPaletteSidebar';
+import { SleekPuzzleBlock } from './blockcoding/SleekPuzzleBlock';
 import { CustomBlockBuilderModal } from './blockcoding/CustomBlockBuilderModal';
+import { CreateVariableModal } from './blockcoding/CreateVariableModal';
 import { VersionHistoryModal } from './blockcoding/VersionHistoryModal';
 import { BlockTemplatesModal } from './blockcoding/BlockTemplatesModal';
-import { AiBlockAssistantModal } from './blockcoding/AiBlockAssistantModal';
-import { MacroRecorderModal } from './blockcoding/MacroRecorderModal';
-import { VersionComparisonModal } from './blockcoding/VersionComparisonModal';
-import { ImportConflictModal } from './blockcoding/ImportConflictModal';
-import { BlockCommandPalette } from './blockcoding/BlockCommandPalette';
 import { BlockContextMenu } from './blockcoding/BlockContextMenu';
-import { CreateVariableModal } from './blockcoding/CreateVariableModal';
+import { BlockCommandPalette } from './blockcoding/BlockCommandPalette';
+import { TestSimulationConsole } from './TestSimulationConsole';
+import { BLOCK_CATALOG, createBlockInstance } from '../data/blockCatalog';
 
 interface BlockCodingWorkspaceProps {
-  blocks: BlockNode[];
-  onUpdateBlocks: (blocks: BlockNode[]) => void;
-  variables: MacroVariable[];
-  onUpdateVariables: (variables: MacroVariable[]) => void;
-  customBlocks: CustomBlockDefinition[];
-  onUpdateCustomBlocks: (customBlocks: CustomBlockDefinition[]) => void;
-  snapshots: MacroVersionSnapshot[];
-  onCreateSnapshot: (label: string, description?: string) => void;
-  onRestoreSnapshot: (snapshotId: string) => void;
-  onDeleteSnapshot: (snapshotId: string) => void;
+  isBn?: boolean;
+  blocks?: BlockNode[];
+  onUpdateBlocks?: (blocks: BlockNode[]) => void;
+  variables?: MacroVariable[];
+  onUpdateVariables?: (variables: MacroVariable[]) => void;
+  customBlocks?: CustomBlockDefinition[];
+  onUpdateCustomBlocks?: (customBlocks: CustomBlockDefinition[]) => void;
+  snapshots?: MacroVersionSnapshot[];
+  onCreateSnapshot?: (label: string, description?: string) => void;
+  onRestoreSnapshot?: (snapshotId: string) => void;
+  onDeleteSnapshot?: (snapshotId: string) => void;
   onAutoSaveTrigger?: () => void;
+  onExportToLibrary?: (name: string, content: string) => void;
 }
 
 export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
-  blocks,
-  onUpdateBlocks,
-  variables,
-  onUpdateVariables,
-  customBlocks,
-  onUpdateCustomBlocks,
-  snapshots,
-  onCreateSnapshot,
-  onRestoreSnapshot,
-  onDeleteSnapshot,
-  onAutoSaveTrigger,
+  isBn = true,
+  blocks: externalBlocks,
+  onUpdateBlocks = () => {},
+  variables: externalVariables,
+  onUpdateVariables = () => {},
+  customBlocks: externalCustomBlocks,
+  onUpdateCustomBlocks = () => {},
+  snapshots = [],
+  onCreateSnapshot = () => {},
+  onRestoreSnapshot = () => {},
+  onDeleteSnapshot = () => {},
+  onAutoSaveTrigger = () => {},
+  onExportToLibrary,
 }) => {
+  // Local fallback state when used standalone
+  const [internalBlocks, setInternalBlocks] = useState<BlockNode[]>(() => {
+    return [
+      createBlockInstance('event_on_hotkey', { position: { x: 80, y: 80 }, HOTKEY: 'F8' }),
+      createBlockInstance('mouse_bezier_aim', { position: { x: 80, y: 190 }, DELTA_X: 0, DELTA_Y: 8 }),
+    ];
+  });
+  const [internalVars, setInternalVars] = useState<MacroVariable[]>([]);
+  const [internalCustomBlocks, setInternalCustomBlocks] = useState<CustomBlockDefinition[]>([]);
+
+  const blocks = externalBlocks || internalBlocks;
+  const variables = externalVariables || internalVars;
+  const customBlocks = externalCustomBlocks || internalCustomBlocks;
+
+  const handleSetBlocks = (newBlocks: BlockNode[]) => {
+    setInternalBlocks(newBlocks);
+    if (onUpdateBlocks) onUpdateBlocks(newBlocks);
+  };
+
+  // EXPORT TO MACRO LIBRARY
+  const handleExportToLibrary = () => {
+    if (!onExportToLibrary) return;
+    const blockData = JSON.stringify({
+      macroType: 'block_coding',
+      version: '1.0.0',
+      blocks: blocks,
+      variables: variables,
+      customBlocks: customBlocks
+    }, null, 2);
+    onExportToLibrary('Block Coding Macro', blockData);
+  };
+
   // Engine Ref
   const engineRef = useRef<BlockExecutionEngine | null>(null);
 
-  // Canvas Viewport Transformation
+  // Canvas Viewport Pan / Zoom
   const [zoom, setZoom] = useState<number>(1);
-  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 40, y: 40 });
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 60, y: 60 });
   const [isPanning, setIsPanning] = useState<boolean>(false);
   const [startPan, setStartPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Selection & Active Block Tracking
+  // Dragging / Moving Block State
+  const [movingBlockId, setMovingBlockId] = useState<string | null>(null);
+  const [movingBlockOffset, setMovingBlockOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [activeExecutingBlockId, setActiveExecutingBlockId] = useState<string | null>(null);
-
-  // Breakpoints
   const [breakpoints, setBreakpoints] = useState<string[]>([]);
 
-  // Debugger State & Runtime Variables
+  // Runtime State
   const [debuggerState, setDebuggerState] = useState<DebuggerState>({
     status: 'idle',
     activeBlockId: null,
@@ -112,39 +122,25 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
     executionTimeMs: 0,
   });
   const [runtimeVariables, setRuntimeVariables] = useState<Record<string, any>>({});
-  const [executionHistory, setExecutionHistory] = useState<ExecutionHistoryItem[]>([]);
+  const [executionLogs, setExecutionLogs] = useState<string[]>([
+    '[INIT] Block Coding Simulation Engine ready.',
+  ]);
 
-  // Modals & Panels
-  const [isPaletteOpen, setIsPaletteOpen] = useState<boolean>(true);
-  const [isDebuggerOpen, setIsDebuggerOpen] = useState<boolean>(true);
+  // Modals & Popups
   const [isCustomBlockModalOpen, setIsCustomBlockModalOpen] = useState<boolean>(false);
   const [isCreateVariableModalOpen, setIsCreateVariableModalOpen] = useState<boolean>(false);
+  const [isVersionModalOpen, setIsVersionModalOpen] = useState<boolean>(false);
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState<boolean>(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   const [contextMenu, setContextMenu] = useState<{
     position: { x: number; y: number };
     targetBlock: BlockNode | null;
   } | null>(null);
-  const [clipboardBlock, setClipboardBlock] = useState<BlockNode | null>(null);
-  const [isVersionModalOpen, setIsVersionModalOpen] = useState<boolean>(false);
-  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState<boolean>(false);
-  const [isCSharpDrawerOpen, setIsCSharpDrawerOpen] = useState<boolean>(false);
-  const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
-  const [isRecorderModalOpen, setIsRecorderModalOpen] = useState<boolean>(false);
-  const [isDiffModalOpen, setIsDiffModalOpen] = useState<boolean>(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
-  const [diffBaseSnapshotId, setDiffBaseSnapshotId] = useState<string | undefined>(undefined);
-  const [diffTargetSnapshotId, setDiffTargetSnapshotId] = useState<string | undefined>(undefined);
-
-  // Import Conflict Modal
-  const [conflictPackage, setConflictPackage] = useState<MacroExportPackage | null>(null);
-  const [isConflictModalOpen, setIsConflictModalOpen] = useState<boolean>(false);
-
-  const [csharpCode, setCsharpCode] = useState<string>('');
-  const [copySuccess, setCopySuccess] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Initialize & Sync Runtime Variables from definitions
+  // Initialize & Sync Runtime Variables
   useEffect(() => {
     const initVars: Record<string, any> = {};
     for (const v of variables) {
@@ -155,97 +151,42 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
 
   // Initialize Engine
   useEffect(() => {
-    const engine = new BlockExecutionEngine(
-      blocks,
-      variables,
-      customBlocks,
-      []
-    );
-
+    const engine = new BlockExecutionEngine(blocks, variables, customBlocks, []);
     engine.setCallback((event, data) => {
       setDebuggerState(data.debuggerState);
       setActiveExecutingBlockId(data.debuggerState.currentBlockId || data.debuggerState.activeBlockId || null);
       if (data.variables) {
         setRuntimeVariables({ ...data.variables });
       }
-      if (data.historyItem) {
-        setExecutionHistory((prev) => [data.historyItem!, ...prev.slice(0, 49)]);
-      }
     });
-
     engineRef.current = engine;
   }, []);
 
-  // Sync Breakpoints to Engine
+  // Sync Breakpoints
   useEffect(() => {
     if (engineRef.current) {
       engineRef.current.setBreakpoints(breakpoints);
     }
   }, [breakpoints]);
 
-  // Keep C# script in sync when drawer is open
-  useEffect(() => {
-    if (isCSharpDrawerOpen) {
-      setCsharpCode(transpileBlocksToCSharp(blocks));
-    }
-  }, [blocks, isCSharpDrawerOpen]);
-
-  // Global Keyboard Shortcuts
+  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeTag = (document.activeElement?.tagName || '').toLowerCase();
       const isInput = activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select';
 
-      // Command Palette: Ctrl+K or Cmd+K
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
         return;
       }
 
-      // AI Studio: Ctrl+Shift+A or Cmd+Shift+A
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
-        e.preventDefault();
-        setIsAiModalOpen((prev) => !prev);
-        return;
-      }
-
-      // Macro Recorder: Ctrl+Shift+R or Cmd+Shift+R
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'r') {
-        e.preventDefault();
-        setIsRecorderModalOpen((prev) => !prev);
-        return;
-      }
-
-      // Quick Run: F5 or Ctrl+Enter
       if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) {
         e.preventDefault();
         handleRun();
         return;
       }
 
-      // Step Over: F10
-      if (e.key === 'F10') {
-        e.preventDefault();
-        handleStepOver();
-        return;
-      }
-
-      // Step Into: F11
-      if (e.key === 'F11') {
-        e.preventDefault();
-        handleStepInto();
-        return;
-      }
-
-      // Step Out: Shift+F11
-      if (e.shiftKey && e.key === 'F11') {
-        e.preventDefault();
-        handleStepOut();
-        return;
-      }
-
-      // Space to Pause/Resume if not inside input
       if (e.code === 'Space' && !isInput) {
         e.preventDefault();
         if (debuggerState.status === 'running') {
@@ -260,9 +201,14 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [debuggerState.status, blocks, runtimeVariables, customBlocks]);
 
-  // --- Block Manipulation Helpers ---
-  const handleAddBlock = (newBlock: BlockNode) => {
-    onUpdateBlocks([...blocks, newBlock]);
+  // --- Block CRUD Operations ---
+  const handleAddBlock = (newBlock: BlockNode, posX?: number, posY?: number) => {
+    const targetBlock: BlockNode = {
+      ...newBlock,
+      positionX: posX ?? Math.round((Math.random() * 150 + 60)),
+      positionY: posY ?? Math.round((blocks.length * 36 + 40)),
+    };
+    onUpdateBlocks([...blocks, targetBlock]);
     onAutoSaveTrigger?.();
   };
 
@@ -311,6 +257,10 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
     const clone = JSON.parse(JSON.stringify(block)) as BlockNode;
     clone.id = `blk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     clone.title = `${block.title} (Copy)`;
+    if (clone.positionX !== undefined && clone.positionY !== undefined) {
+      clone.positionX += 20;
+      clone.positionY += 20;
+    }
     onUpdateBlocks([...blocks, clone]);
     onAutoSaveTrigger?.();
   };
@@ -401,21 +351,62 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
     onAutoSaveTrigger?.();
   };
 
+  const handleDetachBlock = (blockId: string) => {
+    let detached: BlockNode | null = null;
+
+    function extract(list: BlockNode[]): BlockNode[] {
+      const res: BlockNode[] = [];
+      for (const b of list) {
+        if (b.id === blockId) {
+          detached = { ...b, positionX: Math.round(pan.x + 80), positionY: Math.round(pan.y + 80) };
+          continue;
+        }
+        if (b.childSlots) {
+          const newSlots: Record<string, BlockNode[]> = {};
+          for (const [slot, children] of Object.entries(b.childSlots)) {
+            newSlots[slot] = extract(children || []);
+          }
+          res.push({ ...b, childSlots: newSlots });
+        } else {
+          res.push(b);
+        }
+      }
+      return res;
+    }
+
+    const updated = extract(blocks);
+    if (detached) {
+      onUpdateBlocks([...updated, detached]);
+      onAutoSaveTrigger?.();
+    }
+  };
+
+  // --- Direct Block Mouse Movement on Canvas ---
+  const handleBlockMouseDown = (e: React.MouseEvent, block: BlockNode) => {
+    if (e.button !== 0) return; // Only Left Click
+    e.stopPropagation();
+
+    setSelectedBlockId(block.id);
+    setMovingBlockId(block.id);
+
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    if (canvasRect) {
+      const mouseX = (e.clientX - canvasRect.left - pan.x) / zoom;
+      const mouseY = (e.clientY - canvasRect.top - pan.y) / zoom;
+      setMovingBlockOffset({
+        x: mouseX - (block.positionX || 0),
+        y: mouseY - (block.positionY || 0),
+      });
+    }
+  };
+
   // --- Auto-Arrange Stack ---
   const handleAutoArrange = () => {
     const result = autoArrangeBlockHierarchy(blocks, 60, 60);
     onUpdateBlocks(result.blocks);
   };
 
-  // --- Breakpoint Toggle ---
-  const handleToggleBreakpoint = (blockId: string) => {
-    setBreakpoints((prev) => {
-      const next = prev.includes(blockId) ? prev.filter((id) => id !== blockId) : [...prev, blockId];
-      return next;
-    });
-  };
-
-  // --- Execution Engine Controls ---
+  // --- Execution Controls ---
   const handleRun = async () => {
     if (!engineRef.current) return;
     engineRef.current.setBlocks(blocks);
@@ -424,26 +415,8 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
     await engineRef.current.run();
   };
 
-  const handlePause = () => {
-    engineRef.current?.pause();
-  };
-
-  const handleResume = () => {
-    engineRef.current?.resume();
-  };
-
-  const handleStepOver = () => {
-    engineRef.current?.stepOver();
-  };
-
-  const handleStepInto = () => {
-    engineRef.current?.stepInto();
-  };
-
-  const handleStepOut = () => {
-    engineRef.current?.stepOut();
-  };
-
+  const handlePause = () => engineRef.current?.pause();
+  const handleResume = () => engineRef.current?.resume();
   const handleStop = () => {
     engineRef.current?.stop();
     setActiveExecutingBlockId(null);
@@ -457,7 +430,7 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
       exportedAt: new Date().toISOString(),
       metadata: {
         name: 'Block Macro Stack',
-        description: 'Exported Visual Block Macro Workflow',
+        description: 'Exported Visual Scratch Block Macro Workflow',
       },
       nodeGraph: [],
       blockCoding: blocks,
@@ -484,21 +457,12 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
       const content = event.target?.result as string;
       const validation = validateAndParseMacroPackage(content);
       if (validation.isValid && validation.package) {
-        // Check if there are collisions with existing variables/custom blocks
-        const existingVarNames = new Set(variables.map((v) => v.name));
-        const hasVarCollision = (validation.package.variables || []).some((v) => existingVarNames.has(v.name));
-
-        const existingCustomBlockNames = new Set(customBlocks.map((c) => c.name));
-        const hasCustomBlockCollision = (validation.package.customBlocks || []).some((c) =>
-          existingCustomBlockNames.has(c.name)
-        );
-
-        if ((hasVarCollision || hasCustomBlockCollision) && blocks.length > 0) {
-          setConflictPackage(validation.package);
-          setIsConflictModalOpen(true);
-        } else {
-          applyImportedPackage(validation.package, 'replace');
-        }
+        const pkg = validation.package;
+        if (pkg.blockCoding && pkg.blockCoding.length > 0) onUpdateBlocks(pkg.blockCoding);
+        if (pkg.variables && pkg.variables.length > 0) onUpdateVariables(pkg.variables);
+        if (pkg.customBlocks && pkg.customBlocks.length > 0) onUpdateCustomBlocks(pkg.customBlocks);
+        onCreateSnapshot('Imported Package');
+        onAutoSaveTrigger?.();
       } else {
         alert(validation.error || 'Failed to import macro file.');
       }
@@ -507,38 +471,7 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
     e.target.value = '';
   };
 
-  const applyImportedPackage = (pkg: MacroExportPackage, strategy: 'replace' | 'merge' | 'rename') => {
-    if (strategy === 'replace') {
-      if (pkg.blockCoding && pkg.blockCoding.length > 0) onUpdateBlocks(pkg.blockCoding);
-      if (pkg.variables && pkg.variables.length > 0) onUpdateVariables(pkg.variables);
-      if (pkg.customBlocks && pkg.customBlocks.length > 0) onUpdateCustomBlocks(pkg.customBlocks);
-    } else if (strategy === 'merge') {
-      const mergedBlocks = [...blocks, ...(pkg.blockCoding || [])];
-      const mergedVars = [...variables];
-      for (const v of pkg.variables || []) {
-        if (!mergedVars.some((ev) => ev.name === v.name)) mergedVars.push(v);
-      }
-      const mergedCustom = [...customBlocks];
-      for (const c of pkg.customBlocks || []) {
-        if (!mergedCustom.some((ec) => ec.name === c.name)) mergedCustom.push(c);
-      }
-      onUpdateBlocks(mergedBlocks);
-      onUpdateVariables(mergedVars);
-      onUpdateCustomBlocks(mergedCustom);
-    } else if (strategy === 'rename') {
-      const ts = Date.now().toString().slice(-4);
-      const renamedBlocks = (pkg.blockCoding || []).map((b) => ({ ...b, id: `${b.id}_${ts}` }));
-      const renamedVars = (pkg.variables || []).map((v) => ({ ...v, name: `${v.name}_${ts}` }));
-      const renamedCustom = (pkg.customBlocks || []).map((c) => ({ ...c, name: `${c.name} (${ts})` }));
-      onUpdateBlocks([...blocks, ...renamedBlocks]);
-      onUpdateVariables([...variables, ...renamedVars]);
-      onUpdateCustomBlocks([...customBlocks, ...renamedCustom]);
-    }
-    onCreateSnapshot(`Imported Package (${strategy})`);
-    onAutoSaveTrigger?.();
-  };
-
-  // Canvas Drag & Drop and Context Menu Handlers
+  // Canvas Drag & Drop
   const handleCanvasDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
@@ -549,270 +482,159 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
     const rawData = e.dataTransfer.getData('application/json');
     if (!rawData) return;
     try {
-      const droppedBlock = JSON.parse(rawData) as BlockNode;
-      droppedBlock.id = `blk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-
+      const parsed = JSON.parse(rawData);
       const canvasRect = canvasRef.current?.getBoundingClientRect();
-      if (canvasRect) {
-        const dropX = (e.clientX - canvasRect.left - pan.x) / zoom;
-        const dropY = (e.clientY - canvasRect.top - pan.y) / zoom;
+      if (!canvasRect) return;
+
+      const dropX = (e.clientX - canvasRect.left - pan.x) / zoom;
+      const dropY = (e.clientY - canvasRect.top - pan.y) / zoom;
+
+      if (parsed.type === 'new_block') {
+        const droppedBlock = parsed.block as BlockNode;
+        droppedBlock.id = `blk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
         droppedBlock.positionX = Math.max(20, Math.round(dropX));
         droppedBlock.positionY = Math.max(20, Math.round(dropY));
+        onUpdateBlocks([...blocks, droppedBlock]);
+        onAutoSaveTrigger?.();
+      } else if (parsed.type === 'existing_block') {
+        const blk = parsed.block as BlockNode;
+        const targetBlock = blocks.find((b) => b.id === blk.id);
+        if (targetBlock) {
+          handleUpdateBlock({
+            ...targetBlock,
+            positionX: Math.max(20, Math.round(dropX)),
+            positionY: Math.max(20, Math.round(dropY)),
+          });
+        }
       }
-
-      onUpdateBlocks([...blocks, droppedBlock]);
-      onAutoSaveTrigger?.();
     } catch (err) {
       console.error('Failed to drop block:', err);
     }
   };
 
-  const handleCanvasContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setContextMenu({
-      position: { x: e.clientX, y: e.clientY },
-      targetBlock: null,
-    });
-  };
-
-  const handleBlockContextMenu = (e: React.MouseEvent, block: BlockNode) => {
-    e.preventDefault();
-    setContextMenu({
-      position: { x: e.clientX, y: e.clientY },
-      targetBlock: block,
-    });
-  };
-
-  const handleCopyBlock = (block: BlockNode) => {
-    setClipboardBlock(block);
-  };
-
-  const handlePasteBlock = () => {
-    if (!clipboardBlock) return;
-    const copy = JSON.parse(JSON.stringify(clipboardBlock)) as BlockNode;
-    copy.id = `blk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    copy.title = `${clipboardBlock.title} (Copy)`;
-    if (copy.positionX !== undefined && copy.positionY !== undefined) {
-      copy.positionX += 30;
-      copy.positionY += 30;
-    }
-    onUpdateBlocks([...blocks, copy]);
-    onAutoSaveTrigger?.();
-  };
-
-  const handleDisconnectBlock = (blockId: string) => {
-    // Finds block inside any parent container slot and moves it to top level canvas
-    let extractedBlock: BlockNode | null = null;
-
-    function extractRecursive(list: BlockNode[]): BlockNode[] {
-      const result: BlockNode[] = [];
-      for (const b of list) {
-        if (b.id === blockId) {
-          extractedBlock = { ...b, positionX: 100, positionY: 100 };
-          continue;
-        }
-        if (b.childSlots) {
-          const newSlots: Record<string, BlockNode[]> = {};
-          for (const [slot, children] of Object.entries(b.childSlots)) {
-            newSlots[slot] = extractRecursive(children || []);
-          }
-          result.push({ ...b, childSlots: newSlots });
-        } else {
-          result.push(b);
-        }
-      }
-      return result;
-    }
-
-    const updatedTree = extractRecursive(blocks);
-    if (extractedBlock) {
-      onUpdateBlocks([...updatedTree, extractedBlock]);
-      onAutoSaveTrigger?.();
-    }
-  };
-
-  // Canvas Mouse Pan Controls
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 1 || e.button === 2 || (e.button === 0 && e.altKey)) {
-      e.preventDefault();
+  // Canvas Left-Click Panning
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0 || e.button === 1 || e.button === 2) {
+      // Left or Middle or Right click on canvas background starts panning
       setIsPanning(true);
       setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
     if (isPanning) {
       setPan({ x: e.clientX - startPan.x, y: e.clientY - startPan.y });
+    } else if (movingBlockId) {
+      const canvasRect = canvasRef.current?.getBoundingClientRect();
+      if (canvasRect) {
+        const mouseX = (e.clientX - canvasRect.left - pan.x) / zoom;
+        const mouseY = (e.clientY - canvasRect.top - pan.y) / zoom;
+        const newX = Math.max(10, Math.round(mouseX - movingBlockOffset.x));
+        const newY = Math.max(10, Math.round(mouseY - movingBlockOffset.y));
+
+        onUpdateBlocks(
+          blocks.map((b) => (b.id === movingBlockId ? { ...b, positionX: newX, positionY: newY } : b))
+        );
+      }
     }
   };
 
-  const handleMouseUp = () => {
+  const handleCanvasMouseUp = () => {
     setIsPanning(false);
+    if (movingBlockId) {
+      setMovingBlockId(null);
+      onAutoSaveTrigger?.();
+    }
   };
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-      setZoom((prev) => Math.min(Math.max(prev * zoomFactor, 0.4), 2.0));
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      setZoom((z) => Math.min(Math.max(z * factor, 0.4), 2.0));
     }
   };
+
+  const isRunning = debuggerState.status === 'running';
 
   return (
     <div className="relative flex flex-col h-full w-full bg-[#06080e] overflow-hidden select-none font-sans">
       {/* Top Workspace Header & Control Ribbon */}
-      <div className="h-14 bg-[#0a0d16] border-b border-[#1b2338] px-4 flex items-center justify-between z-30 shadow-md flex-shrink-0">
-        {/* Left Branding & Mode Indicator */}
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#00e5ff] to-[#39ff14] flex items-center justify-center shadow-lg">
-            <Boxes className="w-4 h-4 text-black" />
+      <div className="h-11 bg-[#0a0d16] border-b border-[#1b2338] px-3 flex items-center justify-between z-30 shadow-md flex-shrink-0">
+        {/* Left Branding */}
+        <div className="flex items-center space-x-2.5">
+          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#FFBF00] via-[#4C97FF] to-[#39FF14] flex items-center justify-center shadow">
+            <Boxes className="w-3.5 h-3.5 text-black" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h1 className="text-sm font-black text-white tracking-wide">
-                Block Coding Workspace
+              <h1 className="text-xs font-black text-white tracking-wide">
+                Scratch Block Studio
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-[#39ff14]/20 text-[#39ff14] border border-[#39ff14]/30">
-                Puzzle Engine v3.5
+              <span className="px-1.5 py-0.2 rounded-full text-[8px] font-black uppercase bg-[#39ff14]/20 text-[#39ff14] border border-[#39ff14]/30">
+                v3.5
               </span>
             </div>
-            <p className="text-[10px] text-[#8892b0]">
-              Visual interlocking puzzle blocks • AI assistant • Macro recorder • Time Machine diff
-            </p>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center space-x-1.5 flex-wrap">
-          {/* Quick Command Palette Button (Ctrl+K) */}
+        {/* Action Controls Toolbar */}
+        <div className="flex items-center space-x-1.5">
+          {/* Quick Command Palette */}
           <button
             onClick={() => setIsCommandPaletteOpen(true)}
-            className="px-2.5 py-1.5 rounded-xl bg-[#0e1322] hover:bg-[#182138] border border-[#1e2942] text-xs font-bold text-[#8892b0] hover:text-white flex items-center space-x-1.5 transition-colors cursor-pointer"
-            title="Command Palette (Ctrl+K)"
+            className="px-2 py-1 rounded-lg bg-[#0e1322] hover:bg-[#182138] border border-[#1e2942] text-[11px] font-bold text-[#8892b0] hover:text-white flex items-center space-x-1 transition-colors cursor-pointer"
+            title="Quick Command Palette (Ctrl+K)"
           >
-            <Command className="w-3.5 h-3.5 text-[#00e5ff]" />
+            <Command className="w-3 h-3 text-[#00e5ff]" />
             <span className="hidden md:inline">Palette</span>
-            <kbd className="hidden lg:inline text-[9px] font-mono px-1 py-0.5 bg-[#06080e] border border-[#232f48] rounded text-[#8892b0]">
-              ^K
-            </kbd>
           </button>
 
-          {/* AI Block Assistant Button */}
-          <button
-            onClick={() => setIsAiModalOpen(true)}
-            className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#00e5ff]/20 to-[#39ff14]/20 hover:from-[#00e5ff]/30 hover:to-[#39ff14]/30 border border-[#00e5ff]/40 text-xs font-black text-white flex items-center space-x-1.5 transition-all shadow-sm cursor-pointer"
-            title="AI Macro Block Assistant (Gemini Studio)"
-          >
-            <Bot className="w-3.5 h-3.5 text-[#00e5ff]" />
-            <span>AI Studio</span>
-          </button>
-
-          {/* Macro Event Recorder */}
-          <button
-            onClick={() => setIsRecorderModalOpen(true)}
-            className="px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-xs font-bold text-rose-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
-            title="Record User Inputs & Convert to Blocks"
-          >
-            <Disc className="w-3.5 h-3.5 text-rose-400" />
-            <span>Record</span>
-          </button>
-
-          {/* Starter Templates */}
+          {/* Templates */}
           <button
             onClick={() => setIsTemplatesModalOpen(true)}
-            className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-bold text-amber-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
-            title="Load macro templates"
+            className="px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-[11px] font-bold text-amber-300 flex items-center space-x-1 transition-colors cursor-pointer"
+            title="Pre-built Macro Templates"
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkles className="w-3 h-3" />
             <span className="hidden sm:inline">Templates</span>
           </button>
 
-          {/* Version Diff / Compare */}
-          <button
-            onClick={() => setIsDiffModalOpen(true)}
-            className="px-2.5 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-xs font-bold text-indigo-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
-            title="Compare versions & visual diffs"
-          >
-            <GitCompare className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Diff</span>
-          </button>
-
-          {/* Version History & Snapshots */}
+          {/* History */}
           <button
             onClick={() => setIsVersionModalOpen(true)}
-            className="px-2.5 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-xs font-bold text-purple-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
-            title="Time Machine version snapshots & safe rollback"
+            className="px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-[11px] font-bold text-purple-300 flex items-center space-x-1 transition-colors cursor-pointer"
+            title="Version History Snapshots"
           >
-            <History className="w-3.5 h-3.5" />
+            <History className="w-3 h-3" />
             <span>History ({snapshots.length})</span>
           </button>
 
-          {/* Auto-Arrange Stack */}
+          {/* Auto-Arrange */}
           <button
             onClick={handleAutoArrange}
-            className="px-2.5 py-1.5 rounded-xl bg-[#0e1322] hover:bg-[#182138] border border-[#1e2942] text-xs font-bold text-white flex items-center space-x-1.5 transition-colors cursor-pointer"
-            title="Auto-arrange interlocking blocks vertically"
+            className="px-2 py-1 rounded-lg bg-[#0e1322] hover:bg-[#182138] border border-[#1e2942] text-[11px] font-bold text-white flex items-center space-x-1 transition-colors cursor-pointer"
+            title="Auto-align puzzle stacks"
           >
-            <Grid className="w-3.5 h-3.5 text-[#39ff14]" />
+            <Grid className="w-3 h-3 text-[#39ff14]" />
             <span className="hidden sm:inline">Arrange</span>
           </button>
 
-          {/* Transpile C# Preview */}
-          <button
-            onClick={() => setIsCSharpDrawerOpen((prev) => !prev)}
-            className="px-2.5 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-xs font-bold text-cyan-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
-            title="View generated C# Roslyn code"
-          >
-            <FileCode className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">C#</span>
-          </button>
-
-          {/* Zoom In/Out */}
-          <div className="hidden lg:flex items-center bg-[#0e1322] rounded-xl border border-[#1e2942] p-1 space-x-1">
-            <button
-              onClick={() => setZoom((z) => Math.max(z - 0.15, 0.4))}
-              className="p-1 rounded-lg text-[#8892b0] hover:text-white hover:bg-[#19233a] transition-colors"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <span className="text-[10px] font-mono text-[#00e5ff] px-1 font-bold">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              onClick={() => setZoom((z) => Math.min(z + 0.15, 2.0))}
-              className="p-1 rounded-lg text-[#8892b0] hover:text-white hover:bg-[#19233a] transition-colors"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => {
-                setZoom(1);
-                setPan({ x: 40, y: 40 });
-              }}
-              className="p-1 rounded-lg text-[#8892b0] hover:text-white hover:bg-[#19233a] transition-colors"
-              title="Reset Viewport"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
           {/* Export / Import Package */}
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-1 border-l border-[#1f283d] pl-1.5 ml-0.5">
             <button
               onClick={handleExportMacroPackage}
-              className="p-1.5 rounded-xl bg-[#0e1322] hover:bg-[#182138] border border-[#1e2942] text-[#8892b0] hover:text-white transition-colors cursor-pointer"
-              title="Export .macro.json file"
+              className="p-1 rounded-lg bg-[#0e1322] hover:bg-[#182138] border border-[#1e2942] text-[#8892b0] hover:text-white transition-colors cursor-pointer"
+              title="Export Macro JSON"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3 h-3" />
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="p-1.5 rounded-xl bg-[#0e1322] hover:bg-[#182138] border border-[#1e2942] text-[#8892b0] hover:text-white transition-colors cursor-pointer"
-              title="Import .macro.json file"
+              className="p-1 rounded-lg bg-[#0e1322] hover:bg-[#182138] border border-[#1e2942] text-[#8892b0] hover:text-white transition-colors cursor-pointer"
+              title="Import Macro JSON"
             >
-              <Upload className="w-3.5 h-3.5" />
+              <Upload className="w-3 h-3" />
             </button>
             <input
               ref={fileInputRef}
@@ -822,368 +644,268 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
               onChange={handleImportFile}
             />
           </div>
+
+          {/* Primary Run / Stop Macro Button */}
+          {isRunning ? (
+            <button
+              onClick={handleStop}
+              className="h-7 px-3 rounded-lg bg-[#ff0055] hover:bg-[#d60047] text-white font-black text-xs flex items-center space-x-1 cursor-pointer shadow-[0_0_12px_rgba(255,0,85,0.4)] transition-all ml-1.5"
+            >
+              <Square className="w-3 h-3 fill-current" />
+              <span>Stop</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleRun}
+              className="h-7 px-3 rounded-lg bg-[#39ff14] hover:bg-[#32e012] text-black font-black text-xs flex items-center space-x-1 cursor-pointer shadow-[0_0_12px_rgba(57,255,20,0.4)] transition-all ml-1.5 hover:scale-105"
+            >
+              <Play className="w-3 h-3 fill-current" />
+              <span>Run</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Main Workspace Workspace Layout Area */}
+      {/* Main Workspace Area (Scratch Style: Left Palette + Free Drag Canvas) */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Side Palette Drawer */}
-        <div className="flex-shrink-0 transition-all duration-300 p-2 z-20 h-full">
-          <BlockCodingPalette
-            onAddBlock={handleAddBlock}
-            variables={variables}
-            onOpenCreateVariable={() => setIsCreateVariableModalOpen(true)}
-            customBlocks={customBlocks}
-            onOpenCustomBlockBuilder={() => setIsCustomBlockModalOpen(true)}
-            isCollapsed={!isPaletteOpen}
-            onToggleCollapse={() => setIsPaletteOpen((prev) => !prev)}
-          />
-        </div>
+        {/* Left Fixed Scratch Palette Sidebar with Drag-To-Delete Trash Target */}
+        <ScratchPaletteSidebar
+          onAddBlock={handleAddBlock}
+          variables={variables}
+          onOpenCreateVariable={() => setIsCreateVariableModalOpen(true)}
+          customBlocks={customBlocks}
+          onOpenCustomBlockBuilder={() => setIsCustomBlockModalOpen(true)}
+          onDeleteDraggedBlock={handleDeleteBlock}
+        />
 
-        {/* Central Pan & Zoom Block Canvas */}
+        {/* Central Free-Form Draggable Canvas */}
         <div
           ref={canvasRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
+          onMouseDown={handleCanvasMouseDown}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseUp={handleCanvasMouseUp}
           onWheel={handleWheel}
           onDragOver={handleCanvasDragOver}
           onDrop={handleCanvasDrop}
-          onContextMenu={handleCanvasContextMenu}
-          className="flex-1 relative overflow-hidden bg-[#070911] cursor-grab active:cursor-grabbing"
+          className="flex-1 relative overflow-hidden bg-[#070911] cursor-grab active:cursor-grabbing select-none"
           style={{
             backgroundImage: `radial-gradient(#172138 1px, transparent 1px)`,
-            backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
+            backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
             backgroundPosition: `${pan.x}px ${pan.y}px`,
           }}
         >
-          {/* Pan & Zoom Target Stage */}
+          {/* Zoom & Pan Stage */}
           <div
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transformOrigin: '0 0',
             }}
-            className="absolute top-0 left-0 transition-transform duration-75"
+            className="absolute top-0 left-0 transition-transform duration-75 min-w-[3500px] min-h-[3500px]"
           >
-            {/* Render Puzzle Block Stack */}
-            <div className="w-[460px] space-y-3.5 pb-32">
+            {/* Render Puzzle Blocks */}
+            <div className="space-y-1.5 pb-64">
               {blocks.map((block) => (
-                <PuzzlePieceBlock
+                <div
                   key={block.id}
-                  block={block}
-                  isExecuting={activeExecutingBlockId === block.id}
-                  onUpdateBlock={handleUpdateBlock}
-                  onDeleteBlock={handleDeleteBlock}
-                  onDuplicateBlock={handleDuplicateBlock}
-                  onToggleBreakpoint={handleToggleBreakpoint}
-                  hasBreakpoint={breakpoints.includes(block.id)}
-                  onAddChildBlock={handleAddChildBlock}
-                  onDeleteChildBlock={handleDeleteChildBlock}
-                  onUpdateChildBlock={handleUpdateChildBlock}
-                  onSelectBlock={(b) => setSelectedBlockId(b.id)}
-                  onContextMenuBlock={handleBlockContextMenu}
-                  isSelected={selectedBlockId === block.id}
-                />
+                  onMouseDown={(e) => handleBlockMouseDown(e, block)}
+                  style={{
+                    position: block.positionX !== undefined && block.positionY !== undefined ? 'absolute' : 'relative',
+                    left: block.positionX !== undefined ? `${block.positionX}px` : undefined,
+                    top: block.positionY !== undefined ? `${block.positionY}px` : undefined,
+                  }}
+                  className="cursor-move"
+                >
+                  <SleekPuzzleBlock
+                    block={block}
+                    isExecuting={activeExecutingBlockId === block.id}
+                    onUpdateBlock={handleUpdateBlock}
+                    onDeleteBlock={handleDeleteBlock}
+                    onDuplicateBlock={handleDuplicateBlock}
+                    onToggleBreakpoint={(id) => {
+                      setBreakpoints((prev) =>
+                        prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]
+                      );
+                    }}
+                    hasBreakpoint={breakpoints.includes(block.id)}
+                    onAddChildBlock={handleAddChildBlock}
+                    onDeleteChildBlock={handleDeleteChildBlock}
+                    onUpdateChildBlock={handleUpdateChildBlock}
+                    onSelectBlock={(b) => setSelectedBlockId(b.id)}
+                    onContextMenuBlock={(e, b) => {
+                      setContextMenu({
+                        position: { x: e.clientX, y: e.clientY },
+                        targetBlock: b,
+                      });
+                    }}
+                    isSelected={selectedBlockId === block.id}
+                    onDetachBlock={handleDetachBlock}
+                  />
+                </div>
               ))}
 
               {blocks.length === 0 && (
-                <div className="p-12 text-center rounded-3xl border-2 border-dashed border-[#1b2538] bg-[#0c101c]/60 space-y-4">
-                  <div className="w-12 h-12 rounded-2xl bg-[#00e5ff]/10 border border-[#00e5ff]/30 text-[#00e5ff] flex items-center justify-center mx-auto">
-                    <Boxes className="w-6 h-6" />
+                <div className="absolute left-16 top-16 p-6 text-center rounded-2xl border border-dashed border-[#1b2538] bg-[#0c101c]/80 space-y-2 max-w-xs">
+                  <div className="w-8 h-8 rounded-lg bg-[#00e5ff]/10 border border-[#00e5ff]/30 text-[#00e5ff] flex items-center justify-center mx-auto">
+                    <Boxes className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-extrabold text-white">Stack is Empty</h3>
-                    <p className="text-xs text-[#8892b0] max-w-xs mx-auto mt-1">
-                      Drag blocks from the palette on the left, load a template, or generate a macro sequence using the AI Studio.
+                    <h3 className="text-xs font-bold text-white">Canvas Ready</h3>
+                    <p className="text-[10px] text-[#8892b0] mt-0.5">
+                      Drag puzzle blocks from the palette to start building.
                     </p>
-                  </div>
-                  <div className="flex items-center justify-center space-x-3">
-                    <button
-                      onClick={() => setIsTemplatesModalOpen(true)}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00e5ff] to-[#39ff14] text-black font-black text-xs shadow-lg cursor-pointer"
-                    >
-                      Browse Templates
-                    </button>
-                    <button
-                      onClick={() => setIsAiModalOpen(true)}
-                      className="px-4 py-2 rounded-xl bg-[#141d33] hover:bg-[#1e2a4a] text-[#00e5ff] border border-[#00e5ff]/40 font-bold text-xs cursor-pointer"
-                    >
-                      Generate with AI
-                    </button>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Interactive Minimap */}
-          <div className="absolute right-4 bottom-4 w-44 h-32 rounded-2xl bg-[#0b0e18]/90 border border-[#1b2538] shadow-2xl p-2 z-10 backdrop-blur-md hidden sm:block">
-            <div className="text-[9px] font-black text-[#8892b0] uppercase tracking-wider mb-1 flex items-center justify-between">
-              <span>Stack Minimap</span>
-              <span className="text-[#00e5ff]">{blocks.length} blocks</span>
-            </div>
-            <div className="w-full h-20 bg-[#06080d] rounded-lg border border-[#182136] relative overflow-hidden flex flex-col items-center py-1 space-y-0.5">
-              {blocks.slice(0, 10).map((b, i) => (
-                <div
-                  key={b.id}
-                  className="w-16 h-1 rounded-sm"
-                  style={{
-                    backgroundColor:
-                      activeExecutingBlockId === b.id ? '#39ff14' : b.color || '#2979ff',
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+          {/* Floating Bottom Viewport Controls */}
+          <div className="absolute left-4 bottom-3 flex items-center space-x-1.5 z-20 bg-[#0c101c]/90 backdrop-blur-md px-2.5 py-1 rounded-xl border border-[#1b2538] shadow-2xl">
+            <button
+              onClick={() => setZoom((z) => Math.max(z - 0.15, 0.4))}
+              className="p-1 rounded text-[#8892b0] hover:text-white hover:bg-[#182138] transition-colors cursor-pointer"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-3 h-3" />
+            </button>
+            <span className="text-[10px] font-mono font-bold text-[#00e5ff] min-w-[36px] text-center">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              onClick={() => setZoom((z) => Math.min(z + 0.15, 2.0))}
+              className="p-1 rounded text-[#8892b0] hover:text-white hover:bg-[#182138] transition-colors cursor-pointer"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => {
+                setZoom(1);
+                setPan({ x: 60, y: 60 });
+              }}
+              className="p-1 rounded text-[#8892b0] hover:text-white hover:bg-[#182138] transition-colors cursor-pointer"
+              title="Reset View"
+            >
+              <Maximize2 className="w-3 h-3" />
+            </button>
 
-        {/* Right Side Debugger Drawer */}
-        <div className="flex-shrink-0 transition-all duration-300 p-2 z-20 h-full">
-          <BlockDebuggerPanel
-            debuggerState={debuggerState}
-            variables={runtimeVariables}
-            onUpdateVariable={(name, val) => {
-              setRuntimeVariables((prev) => ({ ...prev, [name]: val }));
-              engineRef.current?.setVariable(name, val);
-            }}
-            onAddVariable={(newVar) => {
-              onUpdateVariables([...variables, newVar]);
-              setRuntimeVariables((prev) => ({ ...prev, [newVar.name]: newVar.value }));
-            }}
-            history={executionHistory}
-            onClearHistory={() => setExecutionHistory([])}
-            breakpoints={breakpoints}
-            onToggleBreakpoint={handleToggleBreakpoint}
-            onClearAllBreakpoints={() => setBreakpoints([])}
-            onRun={handleRun}
-            onPause={handlePause}
-            onResume={handleResume}
-            onStepOver={handleStepOver}
-            onStepInto={handleStepInto}
-            onStepOut={handleStepOut}
-            onStop={handleStop}
-            isCollapsed={!isDebuggerOpen}
-            onToggleCollapse={() => setIsDebuggerOpen((prev) => !prev)}
-          />
+            <div className="w-px h-3.5 bg-[#1f283d] mx-0.5" />
+
+            <button
+              onClick={() => onUpdateBlocks([])}
+              className="p-1 rounded text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
+              title="Clear All Blocks"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* C# Transpiled Code Drawer Modal */}
-      {isCSharpDrawerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-          <div className="bg-[#0b0e17] rounded-3xl border-2 border-cyan-500/50 w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="p-4 border-b border-[#1b2538] flex items-center justify-between bg-[#0e121e]">
-              <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                  <FileCode className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-black text-white flex items-center gap-2">
-                    <span>Generated C# Roslyn Script</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                      .NET 8.0 WPF
-                    </span>
-                  </h2>
-                  <p className="text-xs text-[#8892b0]">
-                    Direct Roslyn-compilable C# code generated from visual block coding puzzle blocks.
-                  </p>
-                </div>
-              </div>
+      {/* INTEGRATED TEST SIMULATION CONSOLE */}
+      <TestSimulationConsole
+        logs={executionLogs}
+        isSimulating={debuggerState.status === 'running'}
+        onStartSimulation={() => {
+          handleRun();
+          setExecutionLogs((prev) => [
+            ...prev,
+            `[START] Block script simulation started at ${new Date().toLocaleTimeString()}`,
+          ]);
+        }}
+        onStopSimulation={() => {
+          handlePause();
+          setExecutionLogs((prev) => [
+            ...prev,
+            `[STOP] Block script simulation stopped at ${new Date().toLocaleTimeString()}`,
+          ]);
+        }}
+        onClearLogs={() => setExecutionLogs([])}
+        lang={isBn ? 'bn' : 'en'}
+      />
 
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(csharpCode);
-                    setCopySuccess(true);
-                    setTimeout(() => setCopySuccess(false), 2000);
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-[#141b2c] hover:bg-[#1f2b45] text-xs font-bold text-[#00e5ff] border border-[#00e5ff]/30 flex items-center space-x-1.5 cursor-pointer"
-                >
-                  {copySuccess ? <Check className="w-3.5 h-3.5 text-[#39ff14]" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copySuccess ? 'Copied!' : 'Copy Code'}</span>
-                </button>
-
-                <button
-                  onClick={() => setIsCSharpDrawerOpen(false)}
-                  className="p-1.5 rounded-xl text-[#8892b0] hover:text-white hover:bg-white/10 transition-colors"
-                >
-                  <Minimize2 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 bg-[#070910]">
-              <pre className="text-xs font-mono text-cyan-200 bg-[#04060a] p-4 rounded-2xl border border-[#1b2538] leading-relaxed overflow-x-auto">
-                <code>{csharpCode}</code>
-              </pre>
-            </div>
-          </div>
+      {/* ADD TO MACRO LIBRARY BUTTON */}
+      {onExportToLibrary && (
+        <div className="mt-3">
+          <button
+            id="btn-block-add-to-library"
+            onClick={handleExportToLibrary}
+            className="w-full h-12 rounded-xl bg-[#162b16] hover:bg-[#1f3f1f] text-[#39ff14] border-2 border-[#39ff14] font-black text-xs flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(57,255,20,0.3)] cursor-pointer transition-all hover:scale-[1.01]"
+          >
+            <Play className="w-5 h-5 fill-current" />
+            <span>{isBn ? '➕ ম্যাক্রো লাইব্রেরিতে যুক্ত করুন' : '➕ Add to Macro Library'}</span>
+          </button>
         </div>
       )}
 
-      {/* AI Block Assistant Modal */}
-      <AiBlockAssistantModal
-        isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
-        currentBlocks={blocks}
-        currentVariables={variables}
-        onInsertGeneratedBlocks={(genBlocks, genVars) => {
-          onUpdateBlocks([...blocks, ...genBlocks]);
-          if (genVars && genVars.length > 0) {
-            const mergedVars = [...variables];
-            for (const gv of genVars) {
-              if (!mergedVars.some((v) => v.name === gv.name)) {
-                mergedVars.push(gv);
-              }
-            }
-            onUpdateVariables(mergedVars);
-          }
-          onCreateSnapshot('AI Generated Macro Blocks');
-          onAutoSaveTrigger?.();
+      {/* Modals */}
+      <CustomBlockBuilderModal
+        isOpen={isCustomBlockModalOpen}
+        onClose={() => setIsCustomBlockModalOpen(false)}
+        onSaveCustomBlock={(newCustomBlock: CustomBlockDefinition) => {
+          onUpdateCustomBlocks([...customBlocks, newCustomBlock]);
+          onCreateSnapshot(`Created custom block: ${newCustomBlock.name}`);
         }}
       />
 
-      {/* Macro Input Event Live Recorder Modal */}
-      <MacroRecorderModal
-        isOpen={isRecorderModalOpen}
-        onClose={() => setIsRecorderModalOpen(false)}
-        onInsertRecordedBlocks={(recBlocks) => {
-          onUpdateBlocks([...blocks, ...recBlocks]);
-          onCreateSnapshot(`Recorded ${recBlocks.length} Input Actions`);
-          onAutoSaveTrigger?.();
+      <CreateVariableModal
+        isOpen={isCreateVariableModalOpen}
+        onClose={() => setIsCreateVariableModalOpen(false)}
+        onCreateVariable={(newVar: MacroVariable) => {
+          onUpdateVariables([...variables, newVar]);
+          onCreateSnapshot(`Created variable: ${newVar.name}`);
         }}
       />
 
-      {/* Version Diff & Comparison Modal */}
-      <VersionComparisonModal
-        isOpen={isDiffModalOpen}
-        onClose={() => setIsDiffModalOpen(false)}
+      <VersionHistoryModal
+        isOpen={isVersionModalOpen}
+        onClose={() => setIsVersionModalOpen(false)}
         snapshots={snapshots}
-        onRestoreSnapshot={(snapId) => {
-          onRestoreSnapshot(snapId);
-          setIsDiffModalOpen(false);
+        onCreateSnapshot={onCreateSnapshot}
+        onRestoreSnapshot={onRestoreSnapshot}
+        onDeleteSnapshot={onDeleteSnapshot}
+      />
+
+      <BlockTemplatesModal
+        isOpen={isTemplatesModalOpen}
+        onClose={() => setIsTemplatesModalOpen(false)}
+        onSelectTemplate={(tplBlocks: BlockNode[], templateName: string) => {
+          onUpdateBlocks(tplBlocks);
+          onCreateSnapshot(`Loaded template: ${templateName}`);
         }}
       />
 
-      {/* Command Palette (Ctrl+K) */}
       <BlockCommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
-        onAddBlock={handleAddBlock}
+        onAddBlock={(block: BlockNode) => handleAddBlock(block)}
         customBlocks={customBlocks}
         onTriggerRun={handleRun}
         onTriggerPause={handlePause}
         onTriggerAutoArrange={handleAutoArrange}
-        onOpenAiAssistant={() => setIsAiModalOpen(true)}
-        onOpenRecorder={() => setIsRecorderModalOpen(true)}
+        onOpenAiAssistant={() => {}}
+        onOpenRecorder={() => {}}
         onOpenTemplates={() => setIsTemplatesModalOpen(true)}
         onOpenVersionHistory={() => setIsVersionModalOpen(true)}
       />
 
-      {/* Import Conflict Modal */}
-      {isConflictModalOpen && conflictPackage && (
-        <ImportConflictModal
-          isOpen={isConflictModalOpen}
-          onClose={() => setIsConflictModalOpen(false)}
-          conflictDetails={{
-            conflictingCustomBlocks: (conflictPackage.customBlocks || [])
-              .filter((c) => customBlocks.some((ec) => ec.name === c.name))
-              .map((c) => c.name),
-            conflictingVariables: (conflictPackage.variables || [])
-              .filter((v) => variables.some((ev) => ev.name === v.name))
-              .map((v) => v.name),
-          }}
-          onResolve={(strategy) => {
-            const mappedStrategy =
-              strategy === 'keep_both' ? 'merge' : strategy === 'rename_imported' ? 'rename' : 'replace';
-            applyImportedPackage(conflictPackage, mappedStrategy);
-            setIsConflictModalOpen(false);
-          }}
-        />
-      )}
-
-      {/* Custom Block Builder Modal */}
-      <CustomBlockBuilderModal
-        isOpen={isCustomBlockModalOpen}
-        onClose={() => setIsCustomBlockModalOpen(false)}
-        onSaveCustomBlock={(cBlock) => {
-          onUpdateCustomBlocks([...customBlocks, cBlock]);
-          
-          // Spawn DEFINE script block on canvas
-          const defineBlock: BlockNode = {
-            id: `blk_def_${cBlock.id}`,
-            type: 'custom_block_definition',
-            category: 'custom',
-            title: `DEFINE ${cBlock.name}`,
-            color: cBlock.color || '#00B5AD',
-            icon: 'Boxes',
-            description: cBlock.description,
-            parameters: {},
-            hasContainerSlot: true,
-            statementSlots: ['body'],
-            childSlots: { body: [] },
-          };
-          
-          onUpdateBlocks([...blocks, defineBlock]);
-          onAutoSaveTrigger?.();
-        }}
-      />
-
-      {/* Create Variable Modal */}
-      <CreateVariableModal
-        isOpen={isCreateVariableModalOpen}
-        onClose={() => setIsCreateVariableModalOpen(false)}
-        onCreateVariable={(newVar) => {
-          onUpdateVariables([...variables, newVar]);
-          onAutoSaveTrigger?.();
-        }}
-      />
-
-      {/* Right Click Context Menu */}
       {contextMenu && (
         <BlockContextMenu
           position={contextMenu.position}
           targetBlock={contextMenu.targetBlock}
           onClose={() => setContextMenu(null)}
-          onDuplicate={handleDuplicateBlock}
-          onCopy={handleCopyBlock}
-          onPaste={handlePasteBlock}
-          onDelete={handleDeleteBlock}
-          onDisconnect={handleDisconnectBlock}
-          onToggleDisabled={handleUpdateBlock}
-          onToggleBreakpoint={handleToggleBreakpoint}
-          onAddComment={(blk) => handleUpdateBlock({ ...blk, comment: blk.comment || 'Block note' })}
-          canPaste={Boolean(clipboardBlock)}
+          onDuplicate={(b: BlockNode) => handleDuplicateBlock(b)}
+          onDelete={(id: string) => handleDeleteBlock(id)}
+          onToggleDisabled={(b: BlockNode) => handleUpdateBlock({ ...b, isDisabled: !b.isDisabled })}
+          onToggleBreakpoint={(id: string) => {
+            setBreakpoints((prev) =>
+              prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]
+            );
+          }}
+          onCopy={() => {}}
+          canPaste={false}
         />
       )}
-
-      {/* Version History Modal */}
-      <VersionHistoryModal
-        isOpen={isVersionModalOpen}
-        onClose={() => setIsVersionModalOpen(false)}
-        snapshots={snapshots}
-        onCreateSnapshot={(label, desc) => onCreateSnapshot(label, desc)}
-        onRestoreSnapshot={(id) => onRestoreSnapshot(id)}
-        onDeleteSnapshot={(id) => onDeleteSnapshot(id)}
-        onCompareSnapshots={(baseId, targetId) => {
-          setDiffBaseSnapshotId(baseId);
-          setDiffTargetSnapshotId(targetId);
-          setIsVersionModalOpen(false);
-          setIsDiffModalOpen(true);
-        }}
-      />
-
-      {/* Starter Templates Modal */}
-      <BlockTemplatesModal
-        isOpen={isTemplatesModalOpen}
-        onClose={() => setIsTemplatesModalOpen(false)}
-        onSelectTemplate={(templateBlocks, name) => {
-          onUpdateBlocks(templateBlocks);
-          onCreateSnapshot(`Loaded Template: ${name}`);
-          onAutoSaveTrigger?.();
-        }}
-      />
     </div>
   );
 };
-

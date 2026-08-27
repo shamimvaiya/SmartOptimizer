@@ -62,17 +62,21 @@ export const NeonMarquee: React.FC<NeonMarqueeProps> = ({
 
       {isOverflowing ? (
         <div
-          className="flex whitespace-nowrap min-w-full"
+          className="flex w-max will-change-transform"
           style={{
             animation: `marqueeScroll ${speedSec}s linear infinite`,
           }}
         >
-          <span className={`inline-block font-extrabold pr-8 ${getStyleClasses()}`}>
-            {text}
-          </span>
-          <span className={`inline-block font-extrabold pr-8 ${getStyleClasses()}`}>
-            {text}
-          </span>
+          <div className="flex shrink-0 items-center pr-12">
+            <span className={`font-extrabold ${getStyleClasses()}`}>
+              {text}
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center pr-12">
+            <span className={`font-extrabold ${getStyleClasses()}`}>
+              {text}
+            </span>
+          </div>
         </div>
       ) : (
         <span ref={textRef} className={`font-extrabold truncate ${getStyleClasses()}`}>

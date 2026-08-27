@@ -23,6 +23,24 @@ import {
   Maximize2,
   ShieldCheck,
   MousePointer2,
+  Save,
+  FolderOpen,
+  Trash2,
+  FileDown,
+  FileUp,
+  Repeat,
+  FileJson,
+  Search,
+  Tag,
+  Filter,
+  Check,
+  FileText,
+  Bookmark,
+  RotateCcw,
+  Scissors,
+  HelpCircle,
+  Info,
+  ExternalLink,
 } from 'lucide-react';
 import {
   PresetProfile,
@@ -49,6 +67,81 @@ import {
   executeInSandbox,
 } from '../utils/scriptTranspiler';
 import { GhostLoopRecorder } from '../utils/ghostMacroRecorder';
+
+const DEFAULT_SAMPLE_MACROS: GhostMacroFile[] = [
+  {
+    id: 'macro_sample_1',
+    name: '⚡ Auto Fast Crouch-Shoot Loop',
+    description: 'Rapid crouch spam sequence synced with left click burst fires.',
+    tags: ['FPS', 'Combat', 'Anti-Recoil'],
+    isFavorite: true,
+    createdAt: new Date().toISOString(),
+    totalDurationMs: 840,
+    eventsCount: 14,
+    screenResolution: { width: 1920, height: 1080 },
+    events: [
+      { id: 'e1', type: 'keydown', timestampMs: 0, key: 'c' },
+      { id: 'e2', type: 'mousedown', timestampMs: 45, button: 'left', x: 960, y: 540 },
+      { id: 'e3', type: 'mouseup', timestampMs: 120, button: 'left', x: 960, y: 540 },
+      { id: 'e4', type: 'keyup', timestampMs: 160, key: 'c' },
+      { id: 'e5', type: 'mousemove', timestampMs: 220, x: 960, y: 544, deltaX: 0, deltaY: 4 },
+      { id: 'e6', type: 'keydown', timestampMs: 290, key: 'c' },
+      { id: 'e7', type: 'mousedown', timestampMs: 340, button: 'left', x: 960, y: 544 },
+      { id: 'e8', type: 'mouseup', timestampMs: 410, button: 'left', x: 960, y: 544 },
+      { id: 'e9', type: 'keyup', timestampMs: 460, key: 'c' },
+      { id: 'e10', type: 'mousemove', timestampMs: 530, x: 960, y: 548, deltaX: 0, deltaY: 4 },
+      { id: 'e11', type: 'keydown', timestampMs: 600, key: 'c' },
+      { id: 'e12', type: 'mousedown', timestampMs: 650, button: 'left', x: 960, y: 548 },
+      { id: 'e13', type: 'mouseup', timestampMs: 730, button: 'left', x: 960, y: 548 },
+      { id: 'e14', type: 'keyup', timestampMs: 840, key: 'c' },
+    ],
+  },
+  {
+    id: 'macro_sample_2',
+    name: '🎯 180° Snap-Turn & Jump Flick',
+    description: 'Instant 180-degree quick turn with jump cancel for defensive evasions.',
+    tags: ['Movement', 'Flick', 'Evasion'],
+    isFavorite: false,
+    createdAt: new Date().toISOString(),
+    totalDurationMs: 620,
+    eventsCount: 11,
+    screenResolution: { width: 1920, height: 1080 },
+    events: [
+      { id: 'e1', type: 'keydown', timestampMs: 0, key: ' ' },
+      { id: 'e2', type: 'mousemove', timestampMs: 30, x: 1020, y: 540, deltaX: 60, deltaY: 0 },
+      { id: 'e3', type: 'mousemove', timestampMs: 70, x: 1120, y: 540, deltaX: 100, deltaY: 0 },
+      { id: 'e4', type: 'mousemove', timestampMs: 120, x: 1260, y: 540, deltaX: 140, deltaY: 0 },
+      { id: 'e5', type: 'mousemove', timestampMs: 180, x: 1420, y: 540, deltaX: 160, deltaY: 0 },
+      { id: 'e6', type: 'mousemove', timestampMs: 240, x: 1540, y: 540, deltaX: 120, deltaY: 0 },
+      { id: 'e7', type: 'keyup', timestampMs: 300, key: ' ' },
+      { id: 'e8', type: 'mousedown', timestampMs: 380, button: 'right', x: 1540, y: 540 },
+      { id: 'e9', type: 'mousedown', timestampMs: 440, button: 'left', x: 1540, y: 540 },
+      { id: 'e10', type: 'mouseup', timestampMs: 510, button: 'left', x: 1540, y: 540 },
+      { id: 'e11', type: 'mouseup', timestampMs: 560, button: 'right', x: 1540, y: 540 },
+    ],
+  },
+  {
+    id: 'macro_sample_3',
+    name: '🎒 Rapid Quad-Loot Tap Routine',
+    description: 'Instantaneous 4-slot loot pickup sequence with micro randomized delay.',
+    tags: ['Looting', 'Inventory', 'Fast-Tap'],
+    isFavorite: false,
+    createdAt: new Date().toISOString(),
+    totalDurationMs: 480,
+    eventsCount: 8,
+    screenResolution: { width: 1920, height: 1080 },
+    events: [
+      { id: 'e1', type: 'keydown', timestampMs: 0, key: 'f' },
+      { id: 'e2', type: 'keyup', timestampMs: 40, key: 'f' },
+      { id: 'e3', type: 'keydown', timestampMs: 120, key: 'f' },
+      { id: 'e4', type: 'keyup', timestampMs: 160, key: 'f' },
+      { id: 'e5', type: 'keydown', timestampMs: 240, key: 'f' },
+      { id: 'e6', type: 'keyup', timestampMs: 280, key: 'f' },
+      { id: 'e7', type: 'keydown', timestampMs: 360, key: 'f' },
+      { id: 'e8', type: 'keyup', timestampMs: 400, key: 'f' },
+    ],
+  },
+];
 
 interface LogicIntelligenceViewProps {
   activePreset: PresetProfile;
@@ -122,12 +215,52 @@ export const LogicIntelligenceView: React.FC<LogicIntelligenceViewProps> = ({
   const [ghostRecorder] = useState<GhostLoopRecorder>(() => new GhostLoopRecorder());
   const [isRecordingGhost, setIsRecordingGhost] = useState<boolean>(false);
   const [isPlayingGhost, setIsPlayingGhost] = useState<boolean>(false);
-  const [recordedMacro, setRecordedMacro] = useState<GhostMacroFile | null>(null);
-  const [liveEventStream, setLiveEventStream] = useState<GhostMacroEvent[]>([]);
+  const [recordedMacro, setRecordedMacro] = useState<GhostMacroFile | null>(() => DEFAULT_SAMPLE_MACROS[0]);
+  const [liveEventStream, setLiveEventStream] = useState<GhostMacroEvent[]>(() => DEFAULT_SAMPLE_MACROS[0].events);
   const [ghostSpeed, setGhostSpeed] = useState<number>(1.0);
   const [playbackProgress, setPlaybackProgress] = useState<number>(0);
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
   const [jsonModalContent, setJsonModalContent] = useState<string>('');
+
+  // Ghost Loop Library, File Upload & Save State
+  const [savedMacros, setSavedMacros] = useState<GhostMacroFile[]>(() => {
+    try {
+      const stored = localStorage.getItem('aimopt_saved_ghost_macros');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return DEFAULT_SAMPLE_MACROS;
+    } catch (e) {
+      return DEFAULT_SAMPLE_MACROS;
+    }
+  });
+  const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
+  const [saveMacroName, setSaveMacroName] = useState<string>('');
+  const [saveMacroDescription, setSaveMacroDescription] = useState<string>('');
+  const [saveMacroTags, setSaveMacroTags] = useState<string>('Custom, FPS');
+  const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
+  const [macroSearchQuery, setMacroSearchQuery] = useState<string>('');
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string>('All');
+  const [ghostSubTab, setGhostSubTab] = useState<'recorder' | 'library'>('recorder');
+  const [loopCountSetting, setLoopCountSetting] = useState<number>(1); // 1, 3, 5, 10, -1 for Infinity
+  const [currentLoopIteration, setCurrentLoopIteration] = useState<number>(1);
+  const [loopDelayMs, setLoopDelayMs] = useState<number>(200);
+  const [playbackStatusText, setPlaybackStatusText] = useState<string>('IDLE');
+
+  const ghostFileInputRef = useRef<HTMLInputElement | null>(null);
+  const ghostCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isPlayingGhostRef = useRef<boolean>(false);
+
+  // Sync saved macros to localStorage
+  const saveMacrosToStorage = (macros: GhostMacroFile[]) => {
+    setSavedMacros(macros);
+    try {
+      localStorage.setItem('aimopt_saved_ghost_macros', JSON.stringify(macros));
+    } catch (e) {
+      console.error('Failed to save macros to localStorage', e);
+    }
+  };
 
   // Synchronize script code when nodes change
   useEffect(() => {
@@ -304,13 +437,116 @@ export const LogicIntelligenceView: React.FC<LogicIntelligenceViewProps> = ({
     }
   };
 
+  // Render Ghost Path on Canvas
+  useEffect(() => {
+    const canvas = ghostCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Cyber Grid
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += 30) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += 30) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+
+    const events = recordedMacro?.events || liveEventStream;
+    if (!events || events.length === 0) return;
+
+    // Filter points with coordinates
+    const points = events.filter((ev) => ev.x !== undefined && ev.y !== undefined);
+
+    if (points.length > 1) {
+      const getX = (p: GhostMacroEvent) => {
+        const rawX = p.x || 0;
+        return rawX > canvas.width ? (rawX / 1920) * canvas.width : rawX;
+      };
+      const getY = (p: GhostMacroEvent) => {
+        const rawY = p.y || 0;
+        return rawY > canvas.height ? (rawY / 1080) * canvas.height : rawY;
+      };
+
+      // Draw Gradient Path Line
+      ctx.beginPath();
+      ctx.moveTo(getX(points[0]), getY(points[0]));
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(getX(points[i]), getY(points[i]));
+      }
+      ctx.strokeStyle = '#00E5FF';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#00E5FF';
+      ctx.shadowBlur = 6;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Draw trajectory dots and click markers
+      points.forEach((p, idx) => {
+        const px = getX(p);
+        const py = getY(p);
+        if (p.type === 'mousemove') {
+          ctx.fillStyle = idx % 4 === 0 ? '#39FF14' : 'rgba(0, 229, 255, 0.7)';
+          ctx.beginPath();
+          ctx.arc(px, py, 2, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (p.type === 'mousedown') {
+          ctx.fillStyle = '#FF0055';
+          ctx.beginPath();
+          ctx.arc(px, py, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#FF0055';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(px, py, 11, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = '10px monospace';
+          ctx.fillText(p.button === 'right' ? 'R-CLICK' : 'L-CLICK', px + 12, py + 3);
+        }
+      });
+
+      // Start Marker
+      ctx.fillStyle = '#39FF14';
+      ctx.beginPath();
+      ctx.arc(getX(points[0]), getY(points[0]), 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // End Marker
+      const last = points[points.length - 1];
+      ctx.fillStyle = '#FF0055';
+      ctx.beginPath();
+      ctx.arc(getX(last), getY(last), 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#FF0055';
+      ctx.beginPath();
+      ctx.arc(getX(last), getY(last), 12, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }, [recordedMacro, liveEventStream]);
+
   // Handle Ghost Loop Recording
   const handleStartGhostRecording = () => {
     ghostRecorder.startRecording();
     setIsRecordingGhost(true);
     setRecordedMacro(null);
     setLiveEventStream([]);
-    onLog('[Ghost Loop] Recording started. Move mouse and press keys on the canvas...', 'macro');
+    setPlaybackStatusText('REC (RECORDING)');
+    onLog('[Ghost Loop] 🔴 Recording started. Move mouse and press keys on the capture pad...', 'macro');
   };
 
   const handleStopGhostRecording = () => {
@@ -318,33 +554,219 @@ export const LogicIntelligenceView: React.FC<LogicIntelligenceViewProps> = ({
     setIsRecordingGhost(false);
     setRecordedMacro(macroFile);
     setLiveEventStream(macroFile.events);
+    setPlaybackStatusText('IDLE (READY)');
     onLog(
-      `[Ghost Loop] Recording stopped. Captured ${macroFile.eventsCount} events (${macroFile.totalDurationMs}ms).`,
+      `[Ghost Loop] ⏹️ Recording stopped. Captured ${macroFile.eventsCount} events (${macroFile.totalDurationMs}ms).`,
       'success'
     );
   };
 
+  // Process and parse imported macro file (drag & drop or file picker)
+  const processMacroFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const imported = ghostRecorder.importFromJson(text);
+        if (!imported.events || !Array.isArray(imported.events)) {
+          throw new Error('Invalid macro structure: missing events');
+        }
+        setRecordedMacro(imported);
+        setLiveEventStream(imported.events);
+        onLog(
+          `[Ghost Loop] 📥 File loaded successfully: '${file.name}' (${imported.events.length} events, ${imported.totalDurationMs}ms)`,
+          'success'
+        );
+      } catch (err: any) {
+        onLog(`[Ghost Loop] ❌ Failed to parse file '${file.name}': ${err.message}`, 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Direct file download (.aimmacro or .json)
+  const handleDirectDownload = (macro: GhostMacroFile, ext: 'aimmacro' | 'json' = 'aimmacro') => {
+    try {
+      const jsonStr = JSON.stringify(macro, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeName = (macro.name || 'ghost_macro')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/gi, '_')
+        .replace(/_+/g, '_');
+      a.href = url;
+      a.download = `${safeName}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      onLog(`[Ghost Loop] 💾 Exported & downloaded '${a.download}'`, 'success');
+    } catch (e: any) {
+      onLog(`[Ghost Loop] ❌ Export error: ${e.message}`, 'error');
+    }
+  };
+
+  // Save current macro to library
+  const handleOpenSaveModal = () => {
+    if (!recordedMacro && liveEventStream.length === 0) {
+      onLog('[Ghost Loop] ⚠️ No macro recorded or loaded to save', 'warning');
+      return;
+    }
+    setSaveMacroName(recordedMacro?.name || `Ghost_Loop_${new Date().toLocaleTimeString().replace(/:/g, '-')}`);
+    setSaveMacroDescription(recordedMacro?.description || 'Custom recorded macro loop sequence.');
+    setSaveMacroTags(recordedMacro?.tags?.join(', ') || 'Custom, FPS');
+    setShowSaveModal(true);
+  };
+
+  const handleConfirmSaveMacro = () => {
+    if (!saveMacroName.trim()) {
+      onLog('[Ghost Loop] ⚠️ Please provide a macro name', 'warning');
+      return;
+    }
+
+    const eventsToSave = recordedMacro?.events || liveEventStream;
+    const totalDuration = recordedMacro?.totalDurationMs || 
+      (eventsToSave.length > 0 ? eventsToSave[eventsToSave.length - 1].timestampMs : 0);
+
+    const tagsArray = saveMacroTags
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    const newMacro: GhostMacroFile = {
+      id: recordedMacro?.id || `macro_${Date.now()}`,
+      name: saveMacroName.trim(),
+      description: saveMacroDescription.trim(),
+      tags: tagsArray.length > 0 ? tagsArray : ['Custom'],
+      createdAt: new Date().toISOString(),
+      totalDurationMs: totalDuration,
+      eventsCount: eventsToSave.length,
+      screenResolution: recordedMacro?.screenResolution || { width: 1920, height: 1080 },
+      events: [...eventsToSave],
+    };
+
+    const existingIdx = savedMacros.findIndex((m) => m.id === newMacro.id);
+    let updatedList: GhostMacroFile[];
+    if (existingIdx >= 0) {
+      updatedList = [...savedMacros];
+      updatedList[existingIdx] = newMacro;
+    } else {
+      updatedList = [newMacro, ...savedMacros];
+    }
+
+    saveMacrosToStorage(updatedList);
+    setRecordedMacro(newMacro);
+    setShowSaveModal(false);
+    onLog(`[Ghost Loop] 💾 Macro '${newMacro.name}' saved to Local Library!`, 'success');
+  };
+
+  // Load a saved macro from library
+  const handleLoadSavedMacro = (macro: GhostMacroFile) => {
+    setRecordedMacro(macro);
+    setLiveEventStream(macro.events);
+    setGhostSubTab('recorder');
+    onLog(`[Ghost Loop] 📂 Loaded macro '${macro.name}' (${macro.eventsCount} events, ${macro.totalDurationMs}ms)`, 'info');
+  };
+
+  // Delete a saved macro from library
+  const handleDeleteSavedMacro = (id: string) => {
+    const macroToDelete = savedMacros.find((m) => m.id === id);
+    const updated = savedMacros.filter((m) => m.id !== id);
+    saveMacrosToStorage(updated);
+    onLog(`[Ghost Loop] 🗑️ Deleted macro '${macroToDelete?.name || id}'`, 'info');
+  };
+
+  // Optimize & trim long idle pauses from recording
+  const handleTrimPauses = () => {
+    if (!recordedMacro || recordedMacro.events.length === 0) return;
+    const events = [...recordedMacro.events];
+    let offset = 0;
+    const optimizedEvents: GhostMacroEvent[] = [];
+
+    for (let i = 0; i < events.length; i++) {
+      const current = { ...events[i] };
+      if (i > 0) {
+        const prevOriginal = events[i - 1];
+        const gap = current.timestampMs - prevOriginal.timestampMs;
+        if (gap > 350) {
+          const cut = gap - 80;
+          offset += cut;
+        }
+      }
+      current.timestampMs = Math.max(0, current.timestampMs - offset);
+      optimizedEvents.push(current);
+    }
+
+    const trimmedDuration = optimizedEvents[optimizedEvents.length - 1]?.timestampMs || 0;
+    const updated: GhostMacroFile = {
+      ...recordedMacro,
+      totalDurationMs: trimmedDuration,
+      events: optimizedEvents,
+    };
+    setRecordedMacro(updated);
+    setLiveEventStream(optimizedEvents);
+    onLog(
+      `[Ghost Loop] ✂️ Optimized & trimmed idle pauses. Duration reduced to ${trimmedDuration}ms`,
+      'success'
+    );
+  };
+
+  // Playback with multi-loop support
   const handlePlayGhostMacro = async () => {
-    if (!recordedMacro) return;
+    if (!recordedMacro || recordedMacro.events.length === 0) return;
+
     if (isPlayingGhost) {
+      isPlayingGhostRef.current = false;
       ghostRecorder.stopPlayback();
       setIsPlayingGhost(false);
+      setPlaybackStatusText('IDLE');
       return;
     }
 
     setIsPlayingGhost(true);
+    isPlayingGhostRef.current = true;
     setPlaybackProgress(0);
 
-    await ghostRecorder.playMacro(
-      recordedMacro,
-      humanizerConfig,
-      ghostSpeed,
-      (progress) => setPlaybackProgress(progress),
-      (msg) => onLog(msg, 'macro')
+    const totalLoops = loopCountSetting === -1 ? 999999 : loopCountSetting;
+    onLog(
+      `[Ghost Loop Playback] ▶️ Starting loop run (Mode: ${
+        loopCountSetting === -1 ? 'Infinite (∞)' : `${loopCountSetting}x`
+      }, Speed: ${ghostSpeed}x)...`,
+      'macro'
     );
 
+    for (let iter = 1; iter <= totalLoops; iter++) {
+      if (!isPlayingGhostRef.current) break;
+      setCurrentLoopIteration(iter);
+      setPlaybackStatusText(
+        loopCountSetting === -1
+          ? `PLAYING (LOOP ∞ - Cycle ${iter})`
+          : `PLAYING (LOOP ${iter}/${loopCountSetting})`
+      );
+
+      await ghostRecorder.playMacro(
+        recordedMacro,
+        humanizerConfig,
+        ghostSpeed,
+        (progress) => {
+          if (isPlayingGhostRef.current) {
+            setPlaybackProgress(progress);
+          }
+        },
+        (msg) => onLog(msg, 'macro')
+      );
+
+      if (iter < totalLoops && isPlayingGhostRef.current) {
+        await new Promise((r) => setTimeout(r, loopDelayMs));
+      }
+    }
+
     setIsPlayingGhost(false);
+    isPlayingGhostRef.current = false;
     setPlaybackProgress(100);
+    setPlaybackStatusText('IDLE (FINISHED)');
+    onLog(`[Ghost Loop Playback] 🏁 Playback sequence complete.`, 'success');
   };
 
   return (
@@ -1153,230 +1575,776 @@ export const LogicIntelligenceView: React.FC<LogicIntelligenceViewProps> = ({
         </div>
       )}
 
-      {/* TAB 5: GHOST LOOP MACRO RECORDER */}
+      {/* TAB 5: GHOST LOOP MACRO RECORDER & STUDIO */}
       {activeTab === 'ghost' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* Recorder Controls & Capture Surface */}
-            <div className="lg:col-span-2 space-y-4">
-              <div className="rounded-xl border border-gray-800 bg-dark-200 p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      <Disc className="h-5 w-5 text-cyber-pink" />
-                      'Ghost Loop' Delta Motion Recorder
-                    </h3>
-                    <p className="text-xs text-gray-400">
-                      Captures mouse delta coordinates, clicks, and keyboard strokes with millisecond timestamps.
+          {/* Hidden Native File Explorer Input */}
+          <input
+            type="file"
+            ref={ghostFileInputRef}
+            className="hidden"
+            accept=".json,.aimmacro,application/json"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                processMacroFile(e.target.files[0]);
+                e.target.value = '';
+              }
+            }}
+          />
+
+          {/* Sub-Header Toolbar: Switch between Recorder and Saved Library */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-800 bg-dark-200 p-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setGhostSubTab('recorder')}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+                  ghostSubTab === 'recorder'
+                    ? 'bg-cyber-pink/20 text-cyber-pink border border-cyber-pink/50 shadow-[0_0_12px_rgba(255,0,85,0.25)]'
+                    : 'bg-dark-300 text-gray-400 hover:text-white border border-gray-800'
+                }`}
+              >
+                <Disc className="h-4 w-4" />
+                রেকর্ডার স্টুডিও (Recorder Studio)
+              </button>
+
+              <button
+                onClick={() => setGhostSubTab('library')}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+                  ghostSubTab === 'library'
+                    ? 'bg-cyber-cyan/20 text-cyber-cyan border border-cyber-cyan/50 shadow-[0_0_12px_rgba(0,229,255,0.25)]'
+                    : 'bg-dark-300 text-gray-400 hover:text-white border border-gray-800'
+                }`}
+              >
+                <FolderOpen className="h-4 w-4" />
+                সেভ করা ম্যাক্রো লাইব্রেরি (Saved Library)
+                <span className="ml-1 rounded-full bg-dark-400 px-2 py-0.5 text-[10px] font-mono text-white">
+                  {savedMacros.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Quick Status Bar */}
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 rounded-full border border-gray-700 bg-dark-300 px-3 py-1 text-xs font-mono text-gray-300">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    isRecordingGhost
+                      ? 'bg-red-500 animate-ping'
+                      : isPlayingGhost
+                      ? 'bg-cyber-green animate-pulse'
+                      : 'bg-cyber-cyan'
+                  }`}
+                />
+                {playbackStatusText}
+              </span>
+            </div>
+          </div>
+
+          {/* VIEW 1: RECORDER STUDIO */}
+          {ghostSubTab === 'recorder' && (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              {/* Left 2 Cols: Main Recorder & Interactive Capture Pad */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="rounded-xl border border-gray-800 bg-dark-200 p-5 space-y-4">
+                  {/* Top Title & Primary Action Controls */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 pb-3">
+                    <div>
+                      <h3 className="text-base font-bold text-white flex items-center gap-2">
+                        <Disc className="h-5 w-5 text-cyber-pink" />
+                        'Ghost Loop' মোশন ও কী রেকর্ডার
+                      </h3>
+                      <p className="text-xs text-gray-400">
+                        মাউসের ডেল্টা মুভমেন্ট, ক্লিক ও কিবোর্ড স্ট্রোক রিয়েল-টাইমে মিলিসেকেন্ড নির্ভুলভাবে রেকর্ড হয়।
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isRecordingGhost ? (
+                        <button
+                          id="btn-stop-ghost"
+                          onClick={handleStopGhostRecording}
+                          className="flex items-center gap-2 rounded-lg bg-cyber-pink px-4 py-2 text-xs font-bold text-white shadow-[0_0_15px_rgba(255,0,85,0.4)] animate-pulse"
+                        >
+                          <Square className="h-3.5 w-3.5 fill-current" />
+                          রেকর্ডিং সমাপ্ত (Stop)
+                        </button>
+                      ) : (
+                        <button
+                          id="btn-record-ghost"
+                          onClick={handleStartGhostRecording}
+                          className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+                        >
+                          <Disc className="h-3.5 w-3.5" />
+                          রেকর্ড শুরু (Record)
+                        </button>
+                      )}
+
+                      {recordedMacro && (
+                        <button
+                          id="btn-play-ghost"
+                          onClick={handlePlayGhostMacro}
+                          disabled={isRecordingGhost}
+                          className="flex items-center gap-2 rounded-lg bg-cyber-green px-4 py-2 text-xs font-bold text-dark-400 hover:bg-cyber-green/90 shadow-[0_0_15px_rgba(57,255,20,0.3)] disabled:opacity-50"
+                        >
+                          {isPlayingGhost ? (
+                            <>
+                              <Square className="h-3.5 w-3.5 fill-current" />
+                              প্লেব্যাক বন্ধ ({playbackProgress}%)
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-3.5 w-3.5 fill-current" />
+                              লুপ প্লে (Play Macro)
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Active Macro Metadata Header Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-dark-300 px-3 py-2 text-xs border border-gray-800">
+                    <div className="flex items-center gap-2">
+                      <Bookmark className="h-3.5 w-3.5 text-cyber-cyan" />
+                      <span className="font-semibold text-white">
+                        {recordedMacro?.name || 'রেকর্ড করা হয়নি'}
+                      </span>
+                      {recordedMacro?.tags?.map((t) => (
+                        <span
+                          key={t}
+                          className="rounded bg-cyber-purple/10 px-2 py-0.5 text-[10px] font-mono text-cyber-purple border border-cyber-purple/30"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-3 font-mono text-gray-400 text-[11px]">
+                      <span>
+                        ইভেন্ট:{' '}
+                        <strong className="text-cyber-green">
+                          {recordedMacro?.eventsCount || liveEventStream.length}
+                        </strong>
+                      </span>
+                      <span>
+                        সময়কাল:{' '}
+                        <strong className="text-cyber-yellow">
+                          {recordedMacro?.totalDurationMs || 0}ms
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* THE BIG CAPTURE SURFACE & DRAG-AND-DROP PAD */}
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDraggingFile(true);
+                    }}
+                    onDragLeave={() => setIsDraggingFile(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDraggingFile(false);
+                      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        processMacroFile(e.dataTransfer.files[0]);
+                      }
+                    }}
+                    onMouseMove={(e) => {
+                      if (isRecordingGhost) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        ghostRecorder.recordMouseMove(
+                          Math.round(e.clientX - rect.left),
+                          Math.round(e.clientY - rect.top)
+                        );
+                        setLiveEventStream(ghostRecorder.getEvents().slice(-30));
+                      }
+                    }}
+                    onMouseDown={(e) => {
+                      if (isRecordingGhost) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const btn = e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left';
+                        ghostRecorder.recordMouseButton(
+                          'mousedown',
+                          btn,
+                          Math.round(e.clientX - rect.left),
+                          Math.round(e.clientY - rect.top)
+                        );
+                        setLiveEventStream(ghostRecorder.getEvents().slice(-30));
+                      }
+                    }}
+                    onMouseUp={(e) => {
+                      if (isRecordingGhost) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const btn = e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left';
+                        ghostRecorder.recordMouseButton(
+                          'mouseup',
+                          btn,
+                          Math.round(e.clientX - rect.left),
+                          Math.round(e.clientY - rect.top)
+                        );
+                        setLiveEventStream(ghostRecorder.getEvents().slice(-30));
+                      }
+                    }}
+                    onContextMenu={(e) => {
+                      if (isRecordingGhost) e.preventDefault();
+                    }}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (isRecordingGhost) {
+                        ghostRecorder.recordKey('keydown', e.key);
+                        setLiveEventStream(ghostRecorder.getEvents().slice(-30));
+                      }
+                    }}
+                    className={`relative h-64 rounded-xl border-2 transition-all cursor-crosshair select-none overflow-hidden flex flex-col justify-between p-3 ${
+                      isDraggingFile
+                        ? 'border-cyber-green bg-cyber-green/15 shadow-[0_0_30px_rgba(57,255,20,0.3)]'
+                        : isRecordingGhost
+                        ? 'border-cyber-pink bg-cyber-pink/5 shadow-[0_0_20px_rgba(255,0,85,0.25)]'
+                        : 'border-gray-800 bg-dark-400 hover:border-gray-700'
+                    }`}
+                  >
+                    {/* Visual Trajectory Overlay Canvas */}
+                    <canvas
+                      ref={ghostCanvasRef}
+                      width={750}
+                      height={260}
+                      className="absolute inset-0 h-full w-full pointer-events-none"
+                    />
+
+                    {/* Drag-and-Drop Active Overlay */}
+                    {isDraggingFile && (
+                      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-dark-400/90 backdrop-blur-md">
+                        <FileUp className="h-12 w-12 text-cyber-green animate-bounce mb-2" />
+                        <span className="text-sm font-bold text-white">
+                          ম্যাক্রো ফাইলটি এখানে ড্রপ করুন (Drop .json or .aimmacro here)
+                        </span>
+                        <span className="text-xs text-gray-400 mt-1 font-mono">
+                          সরাসরি ইম্পোর্ট ও লোড হয়ে যাবে
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Top Overlay Badges */}
+                    <div className="relative z-10 flex items-center justify-between pointer-events-none">
+                      <span className="flex items-center gap-1 rounded bg-black/60 px-2 py-1 text-[10px] font-mono text-cyber-cyan backdrop-blur-sm border border-gray-800">
+                        <Target className="h-3 w-3" />
+                        CAPTURE CANVAS [DELTA XY + SCANCODE]
+                      </span>
+
+                      {isRecordingGhost ? (
+                        <span className="flex items-center gap-1.5 rounded bg-red-950/80 px-2.5 py-1 text-[10px] font-mono font-bold text-red-400 border border-red-800 animate-pulse">
+                          <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping"></span>
+                          লাইভ রেকর্ডিং হচ্ছে (Recording in progress)
+                        </span>
+                      ) : (
+                        <span className="rounded bg-black/60 px-2 py-1 text-[10px] font-mono text-gray-400 backdrop-blur-sm border border-gray-800">
+                          {recordedMacro?.eventsCount || 0} টি ইভেন্ট লোডেড
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Center Helper Text (when no recording) */}
+                    {!isRecordingGhost && (!recordedMacro || recordedMacro.events.length === 0) && (
+                      <div className="relative z-10 text-center pointer-events-none my-auto">
+                        <Disc className="mx-auto h-8 w-8 text-gray-600 mb-2" />
+                        <p className="text-sm font-semibold text-gray-300">
+                          রেকর্ড শুরু করতে "Record Macro" চাপুন
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          অথবা নিচে ফাইল সিলেক্ট করুন বা Drag & Drop করে দিন
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Bottom Toolbar over the Canvas */}
+                    <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-800/80 bg-black/40 px-2 py-1 rounded backdrop-blur-sm">
+                      <div className="flex items-center gap-2">
+                        {/* Native File Browser Button */}
+                        <button
+                          type="button"
+                          onClick={() => ghostFileInputRef.current?.click()}
+                          className="flex items-center gap-1.5 rounded bg-dark-200 hover:bg-dark-100 px-3 py-1.5 text-xs font-semibold text-white border border-gray-700 shadow transition-all hover:border-cyber-cyan"
+                        >
+                          <FolderOpen className="h-3.5 w-3.5 text-cyber-cyan" />
+                          ফাইল সিলেক্ট করুন (Browse File)
+                        </button>
+
+                        {/* Save Current Macro Button */}
+                        <button
+                          type="button"
+                          onClick={handleOpenSaveModal}
+                          disabled={!recordedMacro && liveEventStream.length === 0}
+                          className="flex items-center gap-1.5 rounded bg-cyber-pink/15 hover:bg-cyber-pink/25 px-3 py-1.5 text-xs font-bold text-cyber-pink border border-cyber-pink/40 shadow transition-all disabled:opacity-40"
+                        >
+                          <Save className="h-3.5 w-3.5" />
+                          ম্যাক্রো সেভ করুন (Save Macro)
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Direct Download Button */}
+                        <button
+                          type="button"
+                          onClick={() => recordedMacro && handleDirectDownload(recordedMacro, 'aimmacro')}
+                          disabled={!recordedMacro}
+                          className="flex items-center gap-1.5 rounded bg-dark-200 hover:bg-dark-100 px-2.5 py-1.5 text-xs font-semibold text-gray-200 border border-gray-700 disabled:opacity-40"
+                          title="সরাসরি .aimmacro ফাইল ডাউনলোড করুন"
+                        >
+                          <Download className="h-3.5 w-3.5 text-cyber-green" />
+                          ডাউনলোড (.aimmacro)
+                        </button>
+
+                        {/* Optimize Pauses Button */}
+                        <button
+                          type="button"
+                          onClick={handleTrimPauses}
+                          disabled={!recordedMacro || recordedMacro.events.length === 0}
+                          className="flex items-center gap-1.5 rounded bg-dark-200 hover:bg-dark-100 px-2.5 py-1.5 text-xs font-semibold text-cyber-yellow border border-gray-700 disabled:opacity-40"
+                          title="অপ্রয়োজনীয় অতিরিক্ত বিরতি ট্রিম করুন"
+                        >
+                          <Scissors className="h-3.5 w-3.5" />
+                          ট্রিম পজ
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Playback Progress Bar */}
+                  {isPlayingGhost && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs font-mono">
+                        <span className="text-cyber-green font-bold">
+                          {loopCountSetting === -1
+                            ? `লুপ সাইকেল ${currentLoopIteration} (Infinite ∞)`
+                            : `লুপ সাইকেল ${currentLoopIteration} / ${loopCountSetting}`}
+                        </span>
+                        <span className="text-white">{playbackProgress}%</span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-dark-300 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-cyber-cyan via-cyber-green to-cyber-pink transition-all duration-75"
+                          style={{ width: `${playbackProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Event Stream Log Box */}
+                <div className="rounded-xl border border-gray-800 bg-dark-200 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <Terminal className="h-4 w-4 text-cyber-cyan" />
+                      ক্যাপচার্ড ইভেন্ট স্ট্রিম (Event Stream)
+                    </h4>
+                    <span className="font-mono text-xs text-gray-400">
+                      মোট ইভেন্ট: {recordedMacro?.eventsCount || liveEventStream.length}
+                    </span>
+                  </div>
+
+                  <div className="max-h-52 overflow-y-auto space-y-1 font-mono text-[11px] pr-1">
+                    {liveEventStream.length > 0 ? (
+                      liveEventStream.map((ev, i) => (
+                        <div
+                          key={ev.id || i}
+                          className="flex items-center justify-between rounded bg-dark-300 px-2.5 py-1 text-gray-300 border border-gray-800/60"
+                        >
+                          <span className="text-cyber-cyan font-bold w-16">+{ev.timestampMs}ms</span>
+                          <span className="text-white font-semibold">{ev.type}</span>
+                          {ev.deltaX !== undefined && ev.deltaY !== undefined && (
+                            <span className="text-gray-400">
+                              ΔX:{ev.deltaX > 0 ? `+${ev.deltaX}` : ev.deltaX} ΔY:
+                              {ev.deltaY > 0 ? `+${ev.deltaY}` : ev.deltaY}
+                            </span>
+                          )}
+                          {ev.key && (
+                            <span className="rounded bg-cyber-green/10 border border-cyber-green/30 px-1.5 py-0.5 text-cyber-green font-bold">
+                              [{ev.key}]
+                            </span>
+                          )}
+                          {ev.button && (
+                            <span className="rounded bg-cyber-pink/10 border border-cyber-pink/30 px-1.5 py-0.5 text-cyber-pink font-bold">
+                              {ev.button === 'right' ? 'M2 (Right)' : 'M1 (Left)'}
+                            </span>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-gray-600 italic py-4 text-center">
+                        কোনো ইভেন্ট রেকর্ড হয়নি। রেকর্ড বাটন চাপুন বা ফাইল ড্রপ করুন।
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Col: Playback Loops, Speed, & JSON Serialization */}
+              <div className="space-y-4">
+                <div className="rounded-xl border border-gray-800 bg-dark-200 p-5 space-y-4">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Sliders className="h-4 w-4 text-cyber-pink" />
+                    লুপ প্লেব্যাক ও স্পিড কন্ট্রোল
+                  </h4>
+
+                  {/* Loop Count Selector */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">লুপ সাইকেল (Loop Mode)</span>
+                      <span className="font-mono text-cyber-cyan font-bold">
+                        {loopCountSetting === -1 ? 'Infinite (∞)' : `${loopCountSetting} বার`}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {[1, 3, 5, 10, -1].map((cnt) => (
+                        <button
+                          key={cnt}
+                          type="button"
+                          onClick={() => setLoopCountSetting(cnt)}
+                          className={`rounded py-1.5 text-xs font-mono font-bold border transition-all ${
+                            loopCountSetting === cnt
+                              ? 'bg-cyber-cyan/20 text-cyber-cyan border-cyber-cyan'
+                              : 'bg-dark-300 text-gray-400 border-gray-700 hover:text-white'
+                          }`}
+                        >
+                          {cnt === -1 ? '∞' : `${cnt}x`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Playback Speed Multiplier */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">প্লেব্যাক স্পিড (Speed Multiplier)</span>
+                      <span className="font-mono text-cyber-green font-bold">{ghostSpeed}x</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[0.5, 1.0, 1.5, 2.0].map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setGhostSpeed(s)}
+                          className={`rounded py-1.5 text-xs font-mono font-bold border transition-all ${
+                            ghostSpeed === s
+                              ? 'bg-cyber-green/20 text-cyber-green border-cyber-green'
+                              : 'bg-dark-300 text-gray-400 border-gray-700 hover:text-white'
+                          }`}
+                        >
+                          {s}x
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Inter-Loop Delay */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">লুপের মাঝে বিরতি (Inter-cycle Delay)</span>
+                      <span className="font-mono text-cyber-yellow font-bold">{loopDelayMs}ms</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="50"
+                      max="1000"
+                      step="50"
+                      value={loopDelayMs}
+                      onChange={(e) => setLoopDelayMs(parseInt(e.target.value, 10))}
+                      className="w-full accent-cyber-yellow"
+                    />
+                  </div>
+
+                  {/* Anti-Detect Engine Integration Info */}
+                  <div className="rounded-lg bg-dark-300 p-3 border border-gray-800 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-cyber-yellow">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      'Humanizer' অ্যান্টি-ডিটেকশন অ্যাক্টিভ
+                    </div>
+                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                      লুপ প্লেব্যাকের সময় ফিক্সড রোবটিক টাইমিং এড়িয়ে র‍্যান্ডম মাইক্রো-জিটার ইনজেক্ট করা হয়।
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {isRecordingGhost ? (
-                      <button
-                        id="btn-stop-ghost"
-                        onClick={handleStopGhostRecording}
-                        className="flex items-center gap-2 rounded-lg bg-cyber-pink px-4 py-2 text-xs font-bold text-white shadow-[0_0_15px_rgba(255,0,85,0.4)]"
-                      >
-                        <Square className="h-3.5 w-3.5 fill-current" />
-                        Stop Recording
-                      </button>
-                    ) : (
-                      <button
-                        id="btn-record-ghost"
-                        onClick={handleStartGhostRecording}
-                        className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
-                      >
-                        <Disc className="h-3.5 w-3.5" />
-                        Record Macro
-                      </button>
-                    )}
+                  {/* Export & Import Action Buttons */}
+                  <div className="space-y-2 pt-2 border-t border-gray-800">
+                    <button
+                      id="btn-export-json"
+                      type="button"
+                      onClick={() => {
+                        if (recordedMacro) {
+                          const json = ghostRecorder.exportToJson(recordedMacro);
+                          setJsonModalContent(json);
+                          setShowJsonModal(true);
+                        }
+                      }}
+                      disabled={!recordedMacro}
+                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-dark-300 py-2.5 text-xs font-semibold text-white border border-gray-700 hover:bg-dark-100 transition-all disabled:opacity-40"
+                    >
+                      <Code2 className="h-3.5 w-3.5 text-cyber-cyan" />
+                      JSON স্কিমা কোড দেখুন (View JSON)
+                    </button>
 
-                    {recordedMacro && (
-                      <button
-                        id="btn-play-ghost"
-                        onClick={handlePlayGhostMacro}
-                        disabled={isRecordingGhost}
-                        className="flex items-center gap-2 rounded-lg bg-cyber-green px-4 py-2 text-xs font-bold text-dark-400 hover:bg-cyber-green/90 shadow-[0_0_15px_rgba(57,255,20,0.3)] disabled:opacity-50"
-                      >
-                        {isPlayingGhost ? (
-                          <>
-                            <Square className="h-3.5 w-3.5 fill-current" />
-                            Stop Playback ({playbackProgress}%)
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-3.5 w-3.5 fill-current" />
-                            Play Ghost Loop
-                          </>
-                        )}
-                      </button>
-                    )}
+                    <button
+                      id="btn-import-json"
+                      type="button"
+                      onClick={() => {
+                        setJsonModalContent('{\n  "name": "Custom_Ghost_Macro",\n  "events": []\n}');
+                        setShowJsonModal(true);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-dark-300 py-2.5 text-xs font-semibold text-white border border-gray-700 hover:bg-dark-100 transition-all"
+                    >
+                      <Upload className="h-3.5 w-3.5 text-cyber-green" />
+                      JSON পেস্ট করে লোড করুন (Paste JSON)
+                    </button>
                   </div>
-                </div>
-
-                {/* Interactive Recording Area */}
-                <div
-                  onMouseMove={(e) => {
-                    if (isRecordingGhost) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      ghostRecorder.recordMouseMove(
-                        Math.round(e.clientX - rect.left),
-                        Math.round(e.clientY - rect.top)
-                      );
-                      setLiveEventStream(ghostRecorder.getEvents().slice(-20));
-                    }
-                  }}
-                  onMouseDown={(e) => {
-                    if (isRecordingGhost) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      ghostRecorder.recordMouseButton(
-                        'mousedown',
-                        'left',
-                        Math.round(e.clientX - rect.left),
-                        Math.round(e.clientY - rect.top)
-                      );
-                      setLiveEventStream(ghostRecorder.getEvents().slice(-20));
-                    }
-                  }}
-                  onMouseUp={(e) => {
-                    if (isRecordingGhost) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      ghostRecorder.recordMouseButton(
-                        'mouseup',
-                        'left',
-                        Math.round(e.clientX - rect.left),
-                        Math.round(e.clientY - rect.top)
-                      );
-                      setLiveEventStream(ghostRecorder.getEvents().slice(-20));
-                    }
-                  }}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (isRecordingGhost) {
-                      ghostRecorder.recordKey('keydown', e.key);
-                      setLiveEventStream(ghostRecorder.getEvents().slice(-20));
-                    }
-                  }}
-                  className={`h-48 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-all cursor-crosshair select-none ${
-                    isRecordingGhost
-                      ? 'border-cyber-pink bg-cyber-pink/5 animate-pulse'
-                      : 'border-gray-800 bg-dark-300/40 hover:border-gray-700'
-                  }`}
-                >
-                  <Disc
-                    className={`h-8 w-8 mb-2 ${
-                      isRecordingGhost ? 'text-cyber-pink animate-spin' : 'text-gray-600'
-                    }`}
-                  />
-                  <span className="text-sm font-semibold text-gray-300">
-                    {isRecordingGhost
-                      ? 'Recording Live Movements... Move cursor and type keys here'
-                      : 'Ghost Loop Capture Pad'}
-                  </span>
-                  <span className="text-xs text-gray-500 mt-1">
-                    {recordedMacro
-                      ? `${recordedMacro.eventsCount} events ready for playback`
-                      : 'Click "Record Macro" to begin tracking'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Event Stream Log */}
-              <div className="rounded-xl border border-gray-800 bg-dark-200 p-4">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center justify-between">
-                  <span>Captured Event Stream</span>
-                  <span className="font-mono text-gray-400">
-                    Total: {recordedMacro?.eventsCount || liveEventStream.length}
-                  </span>
-                </h4>
-                <div className="max-h-48 overflow-y-auto space-y-1 font-mono text-[11px]">
-                  {liveEventStream.length > 0 ? (
-                    liveEventStream.map((ev, i) => (
-                      <div
-                        key={ev.id || i}
-                        className="flex items-center justify-between rounded bg-dark-300 px-2 py-1 text-gray-300"
-                      >
-                        <span className="text-cyber-cyan font-bold">+{ev.timestampMs}ms</span>
-                        <span className="text-white">{ev.type}</span>
-                        {ev.deltaX !== undefined && (
-                          <span className="text-gray-400">
-                            ΔX:{ev.deltaX} ΔY:{ev.deltaY}
-                          </span>
-                        )}
-                        {ev.key && <span className="text-cyber-green font-bold">[{ev.key}]</span>}
-                        {ev.button && <span className="text-cyber-pink">{ev.button}</span>}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-gray-600 italic">No events recorded yet.</div>
-                  )}
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Macro File Serialization & Export */}
+          {/* VIEW 2: SAVED MACROS LIBRARY */}
+          {ghostSubTab === 'library' && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-gray-800 bg-dark-200 p-5 space-y-4">
-                <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Download className="h-4 w-4 text-cyber-cyan" />
-                  JSON Serialization & Playback
-                </h4>
+              {/* Filter & Search Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-800 bg-dark-200 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="ম্যাক্রো বা ট্যাগ খুঁজুন..."
+                      value={macroSearchQuery}
+                      onChange={(e) => setMacroSearchQuery(e.target.value)}
+                      className="w-full rounded-lg bg-dark-300 pl-9 pr-3 py-1.5 text-xs text-white border border-gray-700 focus:outline-none focus:border-cyber-cyan"
+                    />
+                  </div>
 
-                {/* Playback Speed Multiplier */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">Playback Speed</span>
-                    <span className="font-mono text-cyber-green font-bold">{ghostSpeed}x</span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[0.5, 1.0, 1.5, 2.0].map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setGhostSpeed(s)}
-                        className={`rounded py-1.5 text-xs font-mono font-bold border transition-all ${
-                          ghostSpeed === s
-                            ? 'bg-cyber-green/20 text-cyber-green border-cyber-green'
-                            : 'bg-dark-300 text-gray-400 border-gray-700'
-                        }`}
-                      >
-                        {s}x
-                      </button>
-                    ))}
-                  </div>
+                  {/* Filter Chips */}
+                  {['All', 'FPS', 'Combat', 'Movement', 'Looting', 'Flick', 'Custom'].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setSelectedTagFilter(tag)}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                        selectedTagFilter === tag
+                          ? 'bg-cyber-cyan/20 text-cyber-cyan border border-cyber-cyan/50'
+                          : 'bg-dark-300 text-gray-400 hover:text-white border border-gray-800'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Export / Import Buttons */}
-                <div className="space-y-2 pt-2 border-t border-gray-800">
+                <div className="flex items-center gap-2">
                   <button
-                    id="btn-export-json"
-                    onClick={() => {
-                      if (recordedMacro) {
-                        const json = ghostRecorder.exportToJson(recordedMacro);
-                        setJsonModalContent(json);
-                        setShowJsonModal(true);
-                      }
-                    }}
-                    disabled={!recordedMacro}
-                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-dark-300 py-2.5 text-xs font-semibold text-white border border-gray-700 hover:bg-dark-100 transition-all disabled:opacity-40"
+                    type="button"
+                    onClick={() => ghostFileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 rounded-lg bg-cyber-green px-3 py-1.5 text-xs font-bold text-dark-400 hover:bg-cyber-green/90 shadow transition-all"
                   >
-                    <Download className="h-3.5 w-3.5 text-cyber-cyan" />
-                    Export Macro JSON
-                  </button>
-
-                  <button
-                    id="btn-import-json"
-                    onClick={() => {
-                      setJsonModalContent('{\n  "name": "Custom_Ghost_Macro",\n  "events": []\n}');
-                      setShowJsonModal(true);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-dark-300 py-2.5 text-xs font-semibold text-white border border-gray-700 hover:bg-dark-100 transition-all"
-                  >
-                    <Upload className="h-3.5 w-3.5 text-cyber-green" />
-                    Import / Paste JSON
+                    <FileUp className="h-3.5 w-3.5" />
+                    নতুন ফাইল ইম্পোর্ট করুন
                   </button>
                 </div>
               </div>
+
+              {/* Macro Cards Grid */}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {savedMacros
+                  .filter((m) => {
+                    const matchQuery =
+                      m.name.toLowerCase().includes(macroSearchQuery.toLowerCase()) ||
+                      m.description?.toLowerCase().includes(macroSearchQuery.toLowerCase()) ||
+                      m.tags?.some((t) => t.toLowerCase().includes(macroSearchQuery.toLowerCase()));
+                    const matchTag =
+                      selectedTagFilter === 'All' ||
+                      m.tags?.some((t) => t.toLowerCase() === selectedTagFilter.toLowerCase());
+                    return matchQuery && matchTag;
+                  })
+                  .map((macro) => (
+                    <div
+                      key={macro.id}
+                      className={`rounded-xl border p-4 space-y-3 transition-all flex flex-col justify-between ${
+                        recordedMacro?.id === macro.id
+                          ? 'border-cyber-cyan bg-cyber-cyan/5 shadow-[0_0_15px_rgba(0,229,255,0.15)]'
+                          : 'border-gray-800 bg-dark-200 hover:border-gray-700'
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                            <Disc className="h-4 w-4 text-cyber-pink shrink-0" />
+                            <span className="truncate">{macro.name}</span>
+                          </h4>
+                          {recordedMacro?.id === macro.id && (
+                            <span className="rounded bg-cyber-cyan/20 border border-cyber-cyan/40 px-2 py-0.5 text-[10px] font-mono text-cyber-cyan font-bold">
+                              অ্যাক্টিভ
+                            </span>
+                          )}
+                        </div>
+
+                        {macro.description && (
+                          <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
+                            {macro.description}
+                          </p>
+                        )}
+
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {macro.tags?.map((t) => (
+                            <span
+                              key={t}
+                              className="rounded bg-dark-300 px-2 py-0.5 text-[10px] font-mono text-gray-300 border border-gray-700"
+                            >
+                              #{t}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 pt-2 border-t border-gray-800">
+                        {/* Stats Row */}
+                        <div className="grid grid-cols-2 gap-2 text-center text-xs font-mono">
+                          <div className="rounded bg-dark-300 p-1.5 border border-gray-800">
+                            <span className="text-[10px] text-gray-500 block">ইভেন্ট সংখ্যা</span>
+                            <span className="text-cyber-green font-bold">{macro.eventsCount}টি</span>
+                          </div>
+                          <div className="rounded bg-dark-300 p-1.5 border border-gray-800">
+                            <span className="text-[10px] text-gray-500 block">সময়কাল</span>
+                            <span className="text-cyber-yellow font-bold">
+                              {macro.totalDurationMs} ms
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleLoadSavedMacro(macro)}
+                            className="flex items-center justify-center gap-1 rounded bg-cyber-cyan/15 hover:bg-cyber-cyan/25 py-1.5 text-xs font-bold text-cyber-cyan border border-cyber-cyan/40"
+                          >
+                            <Play className="h-3 w-3 fill-current" />
+                            লোড
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDirectDownload(macro, 'aimmacro')}
+                            className="flex items-center justify-center gap-1 rounded bg-dark-300 hover:bg-dark-100 py-1.5 text-xs font-semibold text-gray-200 border border-gray-700"
+                            title="ডাউনলোড .aimmacro"
+                          >
+                            <Download className="h-3 w-3 text-cyber-green" />
+                            ফাইল
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSavedMacro(macro.id)}
+                            className="flex items-center justify-center gap-1 rounded bg-red-950/40 hover:bg-red-900/60 py-1.5 text-xs font-semibold text-red-400 border border-red-800/60"
+                            title="ডিলিট করুন"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            ডিলিট
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SAVE MACRO MODAL */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-gray-800 bg-dark-200 p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Save className="h-5 w-5 text-cyber-pink" />
+                ম্যাক্রো লাইব্রেরিতে সেভ করুন
+              </h3>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-300 block mb-1">
+                  ম্যাক্রোর নাম (Macro Name) *
+                </label>
+                <input
+                  type="text"
+                  value={saveMacroName}
+                  onChange={(e) => setSaveMacroName(e.target.value)}
+                  placeholder="যেমন: Auto Crouch Shoot, 180 Flick..."
+                  className="w-full rounded-lg bg-dark-300 px-3 py-2 text-xs text-white border border-gray-700 focus:outline-none focus:border-cyber-pink"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-300 block mb-1">
+                  বিবরণ (Description)
+                </label>
+                <textarea
+                  rows={3}
+                  value={saveMacroDescription}
+                  onChange={(e) => setSaveMacroDescription(e.target.value)}
+                  placeholder="ম্যাক্রোটি কী কাজ করে সংক্ষেপে লিখুন..."
+                  className="w-full rounded-lg bg-dark-300 px-3 py-2 text-xs text-white border border-gray-700 focus:outline-none focus:border-cyber-pink"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-300 block mb-1">
+                  ট্যাগসমূহ (Tags - কমা দিয়ে আলাদা করুন)
+                </label>
+                <input
+                  type="text"
+                  value={saveMacroTags}
+                  onChange={(e) => setSaveMacroTags(e.target.value)}
+                  placeholder="FPS, Combat, Recoil, Custom..."
+                  className="w-full rounded-lg bg-dark-300 px-3 py-2 text-xs text-white border border-gray-700 focus:outline-none focus:border-cyber-pink font-mono"
+                />
+              </div>
+
+              <div className="rounded-lg bg-dark-300 p-3 border border-gray-800 text-xs font-mono flex items-center justify-between text-gray-400">
+                <span>
+                  ইভেন্ট:{' '}
+                  <strong className="text-cyber-green">
+                    {recordedMacro?.eventsCount || liveEventStream.length}টি
+                  </strong>
+                </span>
+                <span>
+                  সময়কাল:{' '}
+                  <strong className="text-cyber-yellow">
+                    {recordedMacro?.totalDurationMs || 0}ms
+                  </strong>
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="rounded-lg bg-dark-300 px-4 py-2 text-xs font-semibold text-gray-300 hover:bg-dark-100"
+              >
+                বাতিল (Cancel)
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmSaveMacro}
+                className="flex items-center gap-1.5 rounded-lg bg-cyber-pink px-4 py-2 text-xs font-bold text-white shadow-[0_0_15px_rgba(255,0,85,0.4)] hover:bg-cyber-pink/90"
+              >
+                <Save className="h-3.5 w-3.5" />
+                কনফার্ম সেভ (Save Macro)
+              </button>
             </div>
           </div>
         </div>

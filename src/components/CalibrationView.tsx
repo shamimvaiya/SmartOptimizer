@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Crop,
   ClipboardPaste,
@@ -14,6 +14,10 @@ import {
   Palette,
   Camera,
   RefreshCw,
+  Upload,
+  Image as ImageIcon,
+  Trash2,
+  FolderOpen,
 } from 'lucide-react';
 import { SnipData, VisualProcessingConfig } from '../types';
 import { parseSnipData, serializeSnipData, copyToClipboard, readFromClipboard } from '../utils/serialization';
@@ -43,6 +47,9 @@ export const CalibrationView: React.FC<CalibrationViewProps> = ({
   const [targetColor, setTargetColor] = useState<string>(activeSnip?.colorHex ?? '#39FF14');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [rawClipboardInput, setRawClipboardInput] = useState<string>('');
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync state if activeSnip updates from Snipper
   React.useEffect(() => {
@@ -60,7 +67,107 @@ export const CalibrationView: React.FC<CalibrationViewProps> = ({
     setTimeout(() => setStatusMessage(null), 2500);
   };
 
-  // The Master Paste handler
+  // Process dropped or selected image file
+  const handleProcessImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      showStatus('Please upload or drop a valid image file (PNG, JPG, BMP).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        let detectedHex = '#39FF14';
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            // Sample center pixel
+            const centerX = Math.floor(img.width / 2);
+            const centerY = Math.floor(img.height / 2);
+            const pixel = ctx.getImageData(centerX, centerY, 1, 1).data;
+            const r = pixel[0].toString(16).padStart(2, '0');
+            const g = pixel[1].toString(16).padStart(2, '0');
+            const b = pixel[2].toString(16).padStart(2, '0');
+            detectedHex = `#${r}${g}${b}`.toUpperCase();
+          }
+        } catch {
+          // Fallback if cross-origin or canvas read error
+        }
+
+        const newW = img.width || 200;
+        const newH = img.height || 200;
+        setPosW(newW);
+        setPosH(newH);
+        setTargetColor(detectedHex);
+
+        const updatedSnip: SnipData = {
+          x: posX,
+          y: posY,
+          width: newW,
+          height: newH,
+          imageBase64: base64,
+          colorHex: detectedHex,
+          timestamp: new Date().toISOString(),
+        };
+
+        onSnipChange(updatedSnip);
+        showStatus(`Image loaded (${newW}×${newH}px) with sample color ${detectedHex}!`);
+        onLog(`[Image Upload] Loaded target image: ${newW}x${newH}, Color: ${detectedHex}`);
+      };
+      img.src = base64;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleProcessImageFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleProcessImageFile(e.target.files[0]);
+      e.target.value = '';
+    }
+  };
+
+  const handleClearImage = () => {
+    const updatedSnip: SnipData = {
+      x: posX,
+      y: posY,
+      width: posW,
+      height: posH,
+      imageBase64: undefined,
+      colorHex: targetColor,
+      timestamp: new Date().toISOString(),
+    };
+    onSnipChange(updatedSnip);
+    showStatus('Cleared preview image.');
+  };
+
+  // The Paste handler
   const handleMasterPaste = async () => {
     try {
       const text = await readFromClipboard();
@@ -90,15 +197,15 @@ export const CalibrationView: React.FC<CalibrationViewProps> = ({
         };
 
         onSnipChange(updatedSnip);
-        showStatus('Master Paste Successful! Populated X, Y, W, H & Preview.');
+        showStatus('Paste Successful! Populated X, Y, W, H & Color.');
         onLog(
-          `[Master Paste] Parsed SO_DATA payload: X=${parsed.x}, Y=${parsed.y}, W=${parsed.width}, H=${parsed.height}`
+          `[Paste] Parsed SO_DATA payload: X=${parsed.x}, Y=${parsed.y}, W=${parsed.width}, H=${parsed.height}`
         );
       } else {
         showStatus('Clipboard does not contain valid SO_DATA or coords format.');
       }
     } catch (err) {
-      console.error('Master paste error:', err);
+      console.error('Paste error:', err);
       showStatus('Failed to read clipboard.');
     }
   };
@@ -153,6 +260,15 @@ export const CalibrationView: React.FC<CalibrationViewProps> = ({
         </div>
       )}
 
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        onChange={handleFileInputChange}
+        className="hidden"
+      />
+
       {/* Top Banner with Action Buttons */}
       <div className="bg-[#141419] rounded-2xl p-6 border border-[#252733] shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -161,29 +277,42 @@ export const CalibrationView: React.FC<CalibrationViewProps> = ({
             <span>Smart Snipping &amp; Visual Calibration Suite</span>
           </h2>
           <p className="text-xs text-[#8892b0] mt-1">
-            Capture exact screen coordinates, search regions, and pixel targets with Lightshot-style overlay and Master Paste serialization.
+            Capture exact screen coordinates, search regions, and pixel targets with Lightshot-style overlay and Data serialization.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Select Area (Snipping Tool) Button */}
           <button
             id="btn-trigger-snipping-tool"
             onClick={onOpenSnipper}
-            className="h-11 px-5 rounded-xl bg-[#162b16] hover:bg-[#1f3f1f] text-[#39ff14] border-2 border-[#39ff14] font-black text-xs flex items-center space-x-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(57,255,20,0.3)] hover:scale-105"
+            className="h-9 px-3.5 rounded-xl bg-[#162b16] hover:bg-[#1f3f1f] text-[#39ff14] border border-[#39ff14] font-black text-xs flex items-center space-x-1.5 transition-all cursor-pointer shadow-[0_0_10px_rgba(57,255,20,0.25)] hover:scale-105"
+            title="Open Lightshot-style smart snipping area selector"
           >
-            <Crop className="w-4 h-4" />
-            <span>SELECT AREA (SNIP)</span>
+            <Crop className="w-3.5 h-3.5" />
+            <span>SELECT AREA</span>
           </button>
 
-          {/* Master Paste Button */}
+          {/* Paste Button */}
           <button
-            id="btn-master-paste-main"
+            id="btn-paste-main"
             onClick={handleMasterPaste}
-            className="h-11 px-5 rounded-xl bg-[#002b30] hover:bg-[#003d45] text-[#00e5ff] border-2 border-[#00e5ff] font-black text-xs flex items-center space-x-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(0,229,255,0.3)] hover:scale-105"
+            className="h-9 px-3.5 rounded-xl bg-[#002b30] hover:bg-[#003d45] text-[#00e5ff] border border-[#00e5ff] font-black text-xs flex items-center space-x-1.5 transition-all cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.25)] hover:scale-105"
+            title="Parse and paste coordinates from clipboard"
           >
-            <ClipboardPaste className="w-4 h-4" />
-            <span>MASTER PASTE</span>
+            <ClipboardPaste className="w-3.5 h-3.5" />
+            <span>PASTE</span>
+          </button>
+
+          {/* Copy Button */}
+          <button
+            id="btn-copy-main"
+            onClick={handleCopyCurrentSerialized}
+            className="h-9 px-3.5 rounded-xl bg-[#241a0e] hover:bg-[#332514] text-[#ffb300] border border-[#ffb300]/80 font-black text-xs flex items-center space-x-1.5 transition-all cursor-pointer shadow-[0_0_10px_rgba(255,179,0,0.2)] hover:scale-105"
+            title="Copy current serialized coordinates to clipboard"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>COPY</span>
           </button>
         </div>
       </div>
@@ -196,15 +325,48 @@ export const CalibrationView: React.FC<CalibrationViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-[#252733]">
               <div className="flex items-center space-x-2">
                 <Eye className="w-4 h-4 text-[#39ff14]" />
-                <h3 className="text-sm font-black text-white">Real-Time Cropped Snip Preview</h3>
+                <h3 className="text-sm font-black text-white">Cropped Snip &amp; Template Target</h3>
               </div>
-              <span className="text-[10px] font-mono text-[#8892b0]">
-                {posW} × {posH} px
-              </span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-2 py-1 rounded-lg bg-[#1a1a26] hover:bg-[#252538] text-[#00e5ff] border border-[#00e5ff]/40 text-[10px] font-bold flex items-center space-x-1 transition-all cursor-pointer"
+                  title="Browse image file from computer"
+                >
+                  <FolderOpen className="w-3 h-3" />
+                  <span>Browse</span>
+                </button>
+                {activeSnip?.imageBase64 && (
+                  <button
+                    onClick={handleClearImage}
+                    className="p-1 rounded-lg bg-[#2a1414] hover:bg-[#3d1818] text-[#ff6b6b] border border-[#ff4444]/40 text-[10px] transition-all cursor-pointer"
+                    title="Remove preview image"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+                <span className="text-[10px] font-mono text-[#8892b0]">
+                  {posW} × {posH} px
+                </span>
+              </div>
             </div>
 
-            {/* Preview Box */}
-            <div className="mt-4 w-full h-56 rounded-xl bg-[#09090d] border-2 border-[#252733] overflow-hidden flex items-center justify-center relative group">
+            {/* Preview & Drag-and-Drop Dropzone Box */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => {
+                if (!activeSnip?.imageBase64) {
+                  fileInputRef.current?.click();
+                }
+              }}
+              className={`mt-4 w-full h-56 rounded-xl bg-[#09090d] border-2 transition-all overflow-hidden flex items-center justify-center relative group cursor-pointer ${
+                isDragging
+                  ? 'border-[#39ff14] bg-[#102410] shadow-[0_0_20px_rgba(57,255,20,0.4)]'
+                  : 'border-[#252733] hover:border-[#39ff14]/50'
+              }`}
+            >
               {activeSnip?.imageBase64 ? (
                 <img
                   src={activeSnip.imageBase64}
@@ -212,15 +374,28 @@ export const CalibrationView: React.FC<CalibrationViewProps> = ({
                   className="max-w-full max-h-full object-contain filter drop-shadow-[0_0_10px_rgba(57,255,20,0.3)]"
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center p-6 text-center space-y-2">
-                  <Crosshair className="w-10 h-10 text-[#39ff14]/40 animate-pulse" />
-                  <p className="text-xs text-[#8892b0] font-semibold">
-                    No snip captured yet. Click <strong className="text-[#39ff14]">Select Area</strong> or use <strong className="text-[#00e5ff]">Master Paste</strong>.
-                  </p>
+                <div className="flex flex-col items-center justify-center p-6 text-center space-y-2.5">
+                  <div className="p-3 rounded-full bg-[#162b16] border border-[#39ff14]/40 text-[#39ff14] group-hover:scale-110 transition-transform">
+                    <Upload className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-white font-bold">
+                      {isDragging ? 'Drop Image Here to Load' : 'Drag & Drop Image or Click to Browse'}
+                    </p>
+                    <p className="text-[11px] text-[#8892b0] mt-0.5">
+                      Supports PNG, JPG, WebP template images
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2 pt-1 text-[10px] text-[#64748b] font-mono">
+                    <span>or use</span>
+                    <span className="text-[#39ff14] font-bold">Select Area</span>
+                    <span>/</span>
+                    <span className="text-[#00e5ff] font-bold">Paste</span>
+                  </div>
                 </div>
               )}
 
-              {/* Crosshair Overlay Overlay Grid */}
+              {/* Crosshair Overlay Grid */}
               <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(#39ff14_1px,transparent_1px)] [background-size:16px_16px]" />
 
               {/* Floating Tag */}
@@ -233,7 +408,7 @@ export const CalibrationView: React.FC<CalibrationViewProps> = ({
           {/* Quick Details */}
           <div className="p-3.5 rounded-xl bg-[#181824] border border-[#252733] space-y-2 text-xs">
             <div className="flex items-center justify-between text-[#8892b0]">
-              <span>Captured At:</span>
+              <span>Captured / Loaded At:</span>
               <span className="font-mono text-white">
                 {activeSnip?.timestamp ? new Date(activeSnip.timestamp).toLocaleTimeString() : 'Manual Input'}
               </span>

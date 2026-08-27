@@ -281,6 +281,8 @@ interface BlockLibraryDrawerProps {
   onClose: () => void;
   onSelectBlock: (template: BlockTemplate) => void;
   customActions?: CustomActionDefinition[];
+  onOpenCrafter?: () => void;
+  lang?: 'en' | 'bn';
 }
 
 export const BlockLibraryDrawer: React.FC<BlockLibraryDrawerProps> = ({
@@ -288,11 +290,15 @@ export const BlockLibraryDrawer: React.FC<BlockLibraryDrawerProps> = ({
   onClose,
   onSelectBlock,
   customActions = [],
+  onOpenCrafter,
+  lang = 'en',
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
 
   if (!isOpen) return null;
+
+  const isBn = lang === 'bn';
 
   // Merge custom actions into templates
   const allTemplates: BlockTemplate[] = [
@@ -321,16 +327,16 @@ export const BlockLibraryDrawer: React.FC<BlockLibraryDrawerProps> = ({
   });
 
   const categories = [
-    { id: 'all', label: 'All' },
-    { id: 'event', label: 'Events' },
-    { id: 'vision', label: 'Vision' },
-    { id: 'action', label: 'Actions' },
-    { id: 'condition', label: 'Logic' },
-    { id: 'variable', label: 'Variables' },
-    { id: 'loop', label: 'Loops' },
+    { id: 'all', label: isBn ? 'সবগুলো' : 'All' },
+    { id: 'event', label: isBn ? 'ইভেন্ট' : 'Events' },
+    { id: 'vision', label: isBn ? 'ভিশন' : 'Vision' },
+    { id: 'action', label: isBn ? 'অ্যাকশন' : 'Actions' },
+    { id: 'condition', label: isBn ? 'লজিক' : 'Logic' },
+    { id: 'variable', label: isBn ? 'ভেরিয়েবল' : 'Variables' },
+    { id: 'loop', label: isBn ? 'লুপ' : 'Loops' },
     { id: 'adb', label: 'ADB' },
-    { id: 'script', label: 'Script' },
-    { id: 'custom', label: 'Custom' },
+    { id: 'script', label: isBn ? 'স্ক্রিপ্ট' : 'Script' },
+    { id: 'custom', label: isBn ? 'কাস্টম' : 'Custom' },
   ];
 
   return (
@@ -341,7 +347,7 @@ export const BlockLibraryDrawer: React.FC<BlockLibraryDrawerProps> = ({
     >
       <div
         id="block-library-drawer-container"
-        className="w-full max-w-md h-full bg-[#0a0d16] border-l-2 border-[#1f283d] shadow-2xl flex flex-col p-5 overflow-hidden"
+        className="w-full max-w-2xl sm:w-[620px] h-full bg-[#0a0d16] border-l-2 border-[#1f283d] shadow-2xl flex flex-col p-5 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -351,18 +357,38 @@ export const BlockLibraryDrawer: React.FC<BlockLibraryDrawerProps> = ({
               <Zap className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-white tracking-wide">Block Library</h3>
-              <p className="text-xs text-[#8892b0]">Click any block to insert it onto the canvas</p>
+              <h3 className="text-base font-black text-white tracking-wide">
+                {isBn ? 'অ্যাকশন লাইব্রেরী' : 'Action Library'}
+              </h3>
+              <p className="text-xs text-[#8892b0]">
+                {isBn ? 'ক্যানভাসে যুক্ত করতে যেকোনো অ্যাকশনে ক্লিক করুন' : 'Click any action to insert it onto the canvas'}
+              </p>
             </div>
           </div>
 
-          <button
-            id="close-block-library-drawer-btn"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-[#8892b0] hover:text-white hover:bg-[#1f283d] transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center space-x-2">
+            {onOpenCrafter && (
+              <button
+                id="drawer-open-crafter-btn"
+                onClick={() => {
+                  onOpenCrafter();
+                }}
+                className="h-8 px-2.5 rounded-xl bg-[#1d122b] hover:bg-[#2e1c45] text-[#a855f7] border border-[#a855f7]/60 font-bold text-xs flex items-center space-x-1.5 cursor-pointer transition-all shadow-[0_0_10px_rgba(168,85,247,0.25)] hover:scale-105"
+                title="Open Action Crafter Studio"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{isBn ? '+ অ্যাকশন ক্রাফটার' : '+ Action Crafter'}</span>
+              </button>
+            )}
+
+            <button
+              id="close-block-library-drawer-btn"
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-[#8892b0] hover:text-white hover:bg-[#1f283d] transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Search Bar */}
@@ -371,7 +397,7 @@ export const BlockLibraryDrawer: React.FC<BlockLibraryDrawerProps> = ({
           <input
             id="block-library-search-input"
             type="text"
-            placeholder="Search blocks (e.g. Color, Mouse, Key, Loop)..."
+            placeholder={isBn ? 'অ্যাকশন খুঁজুন (যেমন: Color, Mouse, Key, Loop)...' : 'Search actions (e.g. Color, Mouse, Key, Loop)...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#101424] text-white text-xs border border-[#1f283d] focus:border-[#00e5ff] outline-none font-medium placeholder-[#64748b]"
@@ -404,60 +430,62 @@ export const BlockLibraryDrawer: React.FC<BlockLibraryDrawerProps> = ({
         </div>
 
         {/* Blocks List */}
-        <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin scrollbar-thumb-[#1f283d]">
+        <div className="flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#1f283d]">
           {filteredTemplates.length === 0 ? (
             <div className="text-center py-12 text-[#64748b] text-xs">
               <ShieldAlert className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p>No matching blocks found for &quot;{searchQuery}&quot;</p>
             </div>
           ) : (
-            filteredTemplates.map((item, idx) => {
-              const IconComp = item.icon;
-              return (
-                <div
-                  key={`${item.actionType}-${idx}`}
-                  id={`block-template-card-${idx}`}
-                  onClick={() => {
-                    onSelectBlock(item);
-                    onClose();
-                  }}
-                  style={{ borderColor: `${item.color}40` }}
-                  className="p-3.5 rounded-xl bg-[#0e121e] hover:bg-[#141a2c] border transition-all cursor-pointer group hover:scale-[1.01] hover:shadow-lg flex items-start space-x-3"
-                >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {filteredTemplates.map((item, idx) => {
+                const IconComp = item.icon;
+                return (
                   <div
-                    className="p-2 rounded-lg shrink-0"
-                    style={{ backgroundColor: item.bg, color: item.color }}
+                    key={`${item.actionType}-${idx}`}
+                    id={`block-template-card-${idx}`}
+                    onClick={() => {
+                      onSelectBlock(item);
+                      onClose();
+                    }}
+                    style={{ borderColor: `${item.color}40` }}
+                    className="p-3.5 rounded-xl bg-[#0e121e] hover:bg-[#141a2c] border transition-all cursor-pointer group hover:scale-[1.01] hover:shadow-lg flex items-start space-x-3"
                   >
-                    <IconComp className="w-4 h-4" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-xs text-white group-hover:text-[#00e5ff] transition-colors truncate">
-                        {item.title}
-                      </span>
-                      <span
-                        className="text-[9px] font-mono px-1.5 py-0.5 rounded uppercase font-bold"
-                        style={{ backgroundColor: item.bg, color: item.color }}
-                      >
-                        {item.category}
-                      </span>
+                    <div
+                      className="p-2 rounded-lg shrink-0"
+                      style={{ backgroundColor: item.bg, color: item.color }}
+                    >
+                      <IconComp className="w-4 h-4" />
                     </div>
 
-                    <p className="text-[11px] text-[#8892b0] mt-1 line-clamp-2">
-                      {item.description}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs text-white group-hover:text-[#00e5ff] transition-colors truncate">
+                          {item.title}
+                        </span>
+                        <span
+                          className="text-[9px] font-mono px-1.5 py-0.5 rounded uppercase font-bold shrink-0 ml-1"
+                          style={{ backgroundColor: item.bg, color: item.color }}
+                        >
+                          {item.category}
+                        </span>
+                      </div>
 
-                    <div className="mt-2 flex items-center justify-between text-[10px] text-[#64748b] font-mono">
-                      <span className="truncate max-w-[200px]">Default: {item.defaultParams}</span>
-                      <span className="text-[#00e5ff] font-bold group-hover:underline flex items-center gap-0.5">
-                        <Plus className="w-3 h-3" /> Add
-                      </span>
+                      <p className="text-[11px] text-[#8892b0] mt-1 line-clamp-2">
+                        {item.description}
+                      </p>
+
+                      <div className="mt-2 flex items-center justify-between text-[10px] text-[#64748b] font-mono">
+                        <span className="truncate max-w-[140px]" title={item.defaultParams}>Default: {item.defaultParams}</span>
+                        <span className="text-[#00e5ff] font-bold group-hover:underline flex items-center gap-0.5 shrink-0 ml-1">
+                          <Plus className="w-3 h-3" /> Add
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

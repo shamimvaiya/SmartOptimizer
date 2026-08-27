@@ -1,6 +1,6 @@
 {
   "name": "SmartOptimizer",
-  "description": "High-performance Android emulator optimizer, latency reducer, and visual node/block macro studio with DAG auto-arranger, condition branching, and radar minimap (AIM/OPT Pro v3.5).",
+  "description": "High-performance Android emulator optimizer, latency reducer, vector crosshair aim engine (32+ styles), and visual node/block macro studio with DAG auto-arranger, condition branching, and radar minimap (AIM/OPT Pro v3.5).",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

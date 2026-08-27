@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Cpu, Gauge, Layers, Save, Sliders, Zap, Check, ShieldAlert, Sparkles } from 'lucide-react';
 import { PresetProfile } from '../types';
 
@@ -20,13 +20,49 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({
   onSendAdbFps,
   onSendAdbDpi,
 }) => {
-  const [priority, setPriority] = useState<string>(activePreset.emulator?.priorityClass || 'High');
-  const [affinityMask, setAffinityMask] = useState<number>(activePreset.emulator?.affinityMask || 240);
+  const [priority, setPriority] = useState<string>(activePreset.emulator?.priorityClass || 'Normal');
+  const [affinityMask, setAffinityMask] = useState<number>(activePreset.emulator?.affinityMask || 3); // Default 2 cores for Normal (11 binary = 3)
   const [enableAffinity, setEnableAffinity] = useState<boolean>(activePreset.performance?.enableCpuAffinity ?? true);
-  const [targetFps, setTargetFps] = useState<number>(activePreset.performance?.targetFps || 144);
+  const [targetFps, setTargetFps] = useState<number>(activePreset.performance?.targetFps || 60);
   const [dpi, setDpi] = useState<number>(activePreset.display?.dpi || 240);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+
+  // Click-to-edit state
+  const [isEditingFps, setIsEditingFps] = useState(false);
+  const [isEditingDpi, setIsEditingDpi] = useState(false);
+
+  // Slider refs for mouse wheel control without scrolling page
+  const fpsSliderRef = useRef<HTMLInputElement>(null);
+  const dpiSliderRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const el = fpsSliderRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const step = e.shiftKey ? 10 : 1;
+      const delta = e.deltaY < 0 ? step : -step;
+      setTargetFps((prev) => Math.min(5000, Math.max(1, prev + delta)));
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  useEffect(() => {
+    const el = dpiSliderRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const step = e.shiftKey ? 10 : 1;
+      const delta = e.deltaY < 0 ? step : -step;
+      setDpi((prev) => Math.min(5000, Math.max(1, prev + delta)));
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
 
   const numCores = 8; // standard 8-core visualization
 
@@ -37,6 +73,36 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({
   const toggleCore = (coreIndex: number) => {
     const newMask = affinityMask ^ (1 << coreIndex);
     setAffinityMask(newMask);
+  };
+
+  const selectCoresForPriority = (p: string) => {
+    let mask = 0;
+    // Normal: 2 cores
+    // AboveNormal: 4 cores
+    // High: 6 cores
+    // RealTime: 8 cores
+    switch (p) {
+      case 'Normal':
+        mask = 3; // 00000011 (Cores 0, 1)
+        break;
+      case 'AboveNormal':
+        mask = 15; // 00001111 (Cores 0, 1, 2, 3)
+        break;
+      case 'High':
+        mask = 63; // 00111111 (Cores 0, 1, 2, 3, 4, 5)
+        break;
+      case 'RealTime':
+        mask = 255; // 11111111 (All Cores)
+        break;
+      default:
+        mask = 3;
+    }
+    setAffinityMask(mask);
+  };
+
+  const handlePriorityChange = (p: string) => {
+    setPriority(p);
+    selectCoresForPriority(p);
   };
 
   const selectPerformanceCores = () => {
@@ -134,7 +200,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({
               <div
                 key={item.id}
                 id={`priority-card-${item.id.toLowerCase()}`}
-                onClick={() => setPriority(item.id)}
+                onClick={() => handlePriorityChange(item.id)}
                 className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                   isSelected
                     ? 'bg-[#182618] border-[#39ff14] shadow-[0_0_15px_rgba(57,255,20,0.25)]'
@@ -243,9 +309,24 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({
                 <Gauge className="w-5 h-5 text-[#39ff14]" />
                 <h3 className="text-base font-bold text-white">ADB FPS Target Booster</h3>
               </div>
-              <span className="px-3 py-1 rounded-xl bg-[#162b16] text-[#39ff14] font-mono font-black text-sm border border-[#39ff14]/60 shadow-[0_0_10px_rgba(57,255,20,0.3)]">
-                {targetFps} FPS
-              </span>
+              {isEditingFps ? (
+                <input
+                  autoFocus
+                  type="number"
+                  value={targetFps}
+                  onBlur={() => setIsEditingFps(false)}
+                  onKeyDown={(e) => e.key === 'Enter' && setIsEditingFps(false)}
+                  onChange={(e) => setTargetFps(parseInt(e.target.value) || 0)}
+                  className="w-20 px-2 py-1 rounded bg-[#162b16] text-[#39ff14] font-mono font-black text-sm border border-[#39ff14] outline-none"
+                />
+              ) : (
+                <span 
+                  onClick={() => setIsEditingFps(true)}
+                  className="px-3 py-1 rounded-xl bg-[#162b16] text-[#39ff14] font-mono font-black text-sm border border-[#39ff14]/60 shadow-[0_0_10px_rgba(57,255,20,0.3)] cursor-pointer hover:bg-[#1f3a1f]"
+                >
+                  {targetFps} FPS
+                </span>
+              )}
             </div>
             <p className="text-xs text-[#8892b0] mt-2">
               Injects <code className="text-[#00e5ff]">debug.sf.fps</code> and disables swapinterval for ultra smooth rendering.
@@ -254,21 +335,25 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({
 
           <div className="mt-6 space-y-4">
             <input
+              ref={fpsSliderRef}
               id="slider-target-fps"
               type="range"
-              min="60"
-              max="240"
-              step="30"
+              min="1"
+              max="5000"
+              step="1"
               value={targetFps}
-              onChange={(e) => setTargetFps(parseInt(e.target.value))}
-              className="w-full h-2 bg-[#252733] rounded-lg appearance-none cursor-pointer accent-[#39ff14]"
+              onChange={(e) => setTargetFps(parseInt(e.target.value) || 1)}
+              className="w-full h-2.5 bg-[#252733] rounded-lg appearance-none cursor-pointer accent-[#39ff14] hover:bg-[#2d3040] transition-all"
             />
-            <div className="flex justify-between text-[11px] font-mono text-[#64748b]">
-              <span>60 FPS</span>
-              <span>90 FPS</span>
-              <span>120 FPS</span>
-              <span>144 FPS (Pro)</span>
-              <span>240 FPS (Max)</span>
+            <div className="flex justify-between text-[10px] font-mono text-[#64748b] flex-wrap gap-1">
+              <span className="cursor-pointer hover:text-[#39ff14]" onClick={() => setTargetFps(1)}>1</span>
+              <span className="cursor-pointer hover:text-[#39ff14]" onClick={() => setTargetFps(60)}>60 (Std)</span>
+              <span className="cursor-pointer hover:text-[#39ff14]" onClick={() => setTargetFps(144)}>144</span>
+              <span className="cursor-pointer hover:text-[#39ff14]" onClick={() => setTargetFps(240)}>240</span>
+              <span className="cursor-pointer hover:text-[#39ff14]" onClick={() => setTargetFps(500)}>500</span>
+              <span className="cursor-pointer hover:text-[#39ff14]" onClick={() => setTargetFps(1000)}>1000</span>
+              <span className="cursor-pointer hover:text-[#39ff14]" onClick={() => setTargetFps(2500)}>2500</span>
+              <span className="cursor-pointer hover:text-[#39ff14]" onClick={() => setTargetFps(5000)}>5000 (Max)</span>
             </div>
 
             <button
@@ -290,9 +375,26 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({
                 <Layers className="w-5 h-5 text-[#00e5ff]" />
                 <h3 className="text-base font-bold text-white">Android DPI Density Scaling</h3>
               </div>
-              <span className="px-3 py-1 rounded-xl bg-[#002b30] text-[#00e5ff] font-mono font-black text-sm border border-[#00e5ff]/60 shadow-[0_0_10px_rgba(0,229,255,0.3)]">
-                {dpi} DPI
-              </span>
+              {isEditingDpi ? (
+                <input
+                  autoFocus
+                  type="number"
+                  min="1"
+                  max="5000"
+                  value={dpi}
+                  onBlur={() => setIsEditingDpi(false)}
+                  onKeyDown={(e) => e.key === 'Enter' && setIsEditingDpi(false)}
+                  onChange={(e) => setDpi(parseInt(e.target.value) || 1)}
+                  className="w-24 px-2 py-1 rounded bg-[#002b30] text-[#00e5ff] font-mono font-black text-sm border border-[#00e5ff] outline-none"
+                />
+              ) : (
+                <span 
+                  onClick={() => setIsEditingDpi(true)}
+                  className="px-3 py-1 rounded-xl bg-[#002b30] text-[#00e5ff] font-mono font-black text-sm border border-[#00e5ff]/60 shadow-[0_0_10px_rgba(0,229,255,0.3)] cursor-pointer hover:bg-[#003d45]"
+                >
+                  {dpi} DPI
+                </span>
+              )}
             </div>
             <p className="text-xs text-[#8892b0] mt-2">
               Modifies window manager density (<code className="text-[#00e5ff]">wm density</code>) for precise touch aim sensitivity.
@@ -301,21 +403,24 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({
 
           <div className="mt-6 space-y-4">
             <input
+              ref={dpiSliderRef}
               id="slider-target-dpi"
               type="range"
-              min="160"
-              max="480"
-              step="20"
+              min="1"
+              max="5000"
+              step="1"
               value={dpi}
-              onChange={(e) => setDpi(parseInt(e.target.value))}
-              className="w-full h-2 bg-[#252733] rounded-lg appearance-none cursor-pointer accent-[#00e5ff]"
+              onChange={(e) => setDpi(parseInt(e.target.value) || 1)}
+              className="w-full h-2.5 bg-[#252733] rounded-lg appearance-none cursor-pointer accent-[#00e5ff] hover:bg-[#2d3040] transition-all"
             />
-            <div className="flex justify-between text-[11px] font-mono text-[#64748b]">
-              <span>160 (Low)</span>
-              <span>240 (Standard)</span>
-              <span>320 (High)</span>
-              <span>440 (Ultra Precision)</span>
-              <span>480</span>
+            <div className="flex justify-between text-[10px] font-mono text-[#64748b] flex-wrap gap-1">
+              <span className="cursor-pointer hover:text-[#00e5ff]" onClick={() => setDpi(1)}>1</span>
+              <span className="cursor-pointer hover:text-[#00e5ff]" onClick={() => setDpi(160)}>160</span>
+              <span className="cursor-pointer hover:text-[#00e5ff]" onClick={() => setDpi(240)}>240 (Std)</span>
+              <span className="cursor-pointer hover:text-[#00e5ff]" onClick={() => setDpi(480)}>480</span>
+              <span className="cursor-pointer hover:text-[#00e5ff]" onClick={() => setDpi(1000)}>1000</span>
+              <span className="cursor-pointer hover:text-[#00e5ff]" onClick={() => setDpi(2500)}>2500</span>
+              <span className="cursor-pointer hover:text-[#00e5ff]" onClick={() => setDpi(5000)}>5000 (Max)</span>
             </div>
 
             <button

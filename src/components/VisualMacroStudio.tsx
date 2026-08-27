@@ -54,19 +54,22 @@ import {
   Power,
   Copy,
   ClipboardPaste,
+  AlertTriangle,
+  Construction,
 } from 'lucide-react';
 import { ActionType, MacroNode, SnipData, MacroVariable, MacroGroup, BlockNode, CustomBlockDefinition, MacroVersionSnapshot } from '../types';
 import { parseSnipData } from '../utils/serialization';
-import { transpileGraphToCSharp, transpileBlocksToCSharp } from '../utils/scriptTranspiler';
 import { ActionCrafterModal, CustomActionDefinition } from './ActionCrafterModal';
 import { RadarMinimap } from './RadarMinimap';
 import { ConfirmModal } from './ConfirmModal';
 import { MacroTemplatesModal } from './MacroTemplatesModal';
+import { TestSimulationConsole } from './TestSimulationConsole';
 import { UserManualModal } from './UserManualModal';
 import { BlockLibraryDrawer, BlockTemplate } from './BlockLibraryDrawer';
 import { NodePropertiesDrawer } from './NodePropertiesDrawer';
 import { VariablesModal } from './VariablesModal';
 import { BlockCodingWorkspace } from './BlockCodingWorkspace';
+import { BlockUnderConstructionModal } from './blockcoding/BlockUnderConstructionModal';
 import { MacroVersionManager } from '../utils/macroVersionManager';
 import { BLOCK_CATALOG, createBlockInstance } from '../data/blockCatalog';
 import { autoArrangeNodes, alignNodes, distributeNodes, calculateZoomToFit } from '../utils/autoArranger';
@@ -75,15 +78,17 @@ import { Language, translations } from '../i18n/translations';
 import { api } from '../services/api';
 
 interface VisualMacroStudioProps {
-  initialGraph: MacroNode[];
-  onSaveGraph: (graph: MacroNode[]) => Promise<void>;
-  onRunMacro: (graph: MacroNode[]) => Promise<void>;
-  onStopMacro: () => Promise<void>;
-  isMacroRunning: boolean;
-  onLog: (msg: string) => void;
-  activeSnip: SnipData | null;
-  onOpenSnipper: () => void;
+  initialGraph?: MacroNode[];
+  onSaveGraph?: (graph: MacroNode[]) => Promise<void>;
+  onRunMacro?: (graph: MacroNode[]) => Promise<void>;
+  onStopMacro?: () => Promise<void>;
+  isMacroRunning?: boolean;
+  onLog?: (msg: string) => void;
+  activeSnip?: SnipData | null;
+  onOpenSnipper?: () => void;
+  onExportToLibrary?: (name: string, content: string) => void;
   lang?: Language;
+  isBn?: boolean;
 }
 
 export const ACTION_COLORS: Record<
@@ -133,21 +138,34 @@ export interface SketchwareBlock {
 }
 
 export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
-  initialGraph,
-  onSaveGraph,
-  onRunMacro,
-  onStopMacro,
-  isMacroRunning,
-  onLog,
-  activeSnip,
-  onOpenSnipper,
+  initialGraph = [],
+  onSaveGraph = async () => {},
+  onRunMacro = async () => {},
+  onStopMacro = async () => {},
+  isMacroRunning = false,
+  onLog = () => {},
+  activeSnip = null,
+  onOpenSnipper = () => {},
+  onExportToLibrary,
   lang = 'bn',
+  isBn = true,
 }) => {
-  const t = translations[lang];
-  const isBn = lang === 'bn';
+  const t = translations[lang] || translations.bn;
 
-  // Mode State: Node Graph vs Block Coding vs C# Preview
-  const [workspaceMode, setWorkspaceMode] = useState<'nodeGraph' | 'blockCoding' | 'csharpView'>('nodeGraph');
+  // Mode State: Node Graph vs Block Coding
+  const [workspaceMode, setWorkspaceMode] = useState<'nodeGraph' | 'blockCoding'>('nodeGraph');
+
+  // EXPORT TO MACRO LIBRARY
+  const handleExportToLibrary = () => {
+    if (!onExportToLibrary) return;
+    const graphData = JSON.stringify({
+      macroType: 'visual_graph',
+      version: '1.0.0',
+      nodes: nodes,
+      groups: groups
+    }, null, 2);
+    onExportToLibrary('Visual Graph Macro', graphData);
+  };
 
   const [nodes, setNodes] = useState<MacroNode[]>(
     initialGraph.length > 0
@@ -215,12 +233,32 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
   // Feedback & Execution
   const [savedFeedback, setSavedFeedback] = useState<boolean>(false);
   const [executingNodeId, setExecutingNodeId] = useState<string | null>(null);
+  const [executionLogs, setExecutionLogs] = useState<string[]>([
+    '[INIT] Visual Macro Studio Simulation Engine ready.',
+  ]);
+
+  const handleRunSimulation = () => {
+    onRunMacro(nodes);
+    setExecutionLogs((prev) => [
+      ...prev,
+      `[START] Node graph simulation started at ${new Date().toLocaleTimeString()}`,
+    ]);
+  };
+
+  const handleStopSimulation = () => {
+    onStopMacro();
+    setExecutionLogs((prev) => [
+      ...prev,
+      `[STOP] Node graph simulation stopped at ${new Date().toLocaleTimeString()}`,
+    ]);
+  };
   const [snapToGrid, setSnapToGrid] = useState<boolean>(true);
   const [showGridLines, setShowGridLines] = useState<boolean>(true);
   const [inspectorToast, setInspectorToast] = useState<string | null>(null);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState<boolean>(false);
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState<boolean>(false);
   const [isManualGuideOpen, setIsManualGuideOpen] = useState<boolean>(false);
+  const [isConstructionModalOpen, setIsConstructionModalOpen] = useState<boolean>(false);
 
   // Undo / Redo History Stacks
   const [history, setHistory] = useState<MacroNode[][]>([]);
@@ -271,19 +309,19 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
 
   // Sketchware Block System State (BlockNode Architecture)
   const [blocks, setBlocks] = useState<BlockNode[]>(() => [
-    createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'event_start')!),
-    createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'condition_color_found')!, {
+    createBlockInstance('event_start'),
+    createBlockInstance('condition_color_found', {
       regionX: 860,
       regionY: 440,
       width: 200,
       height: 200,
       color: '#39FF14',
     }),
-    createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'action_human_click')!, {
+    createBlockInstance('action_human_click', {
       button: 'left',
       jitterRadius: 3,
     }),
-    createBlockInstance(BLOCK_CATALOG.find((b) => b.type === 'timing_delay')!, {
+    createBlockInstance('timing_delay', {
       durationMs: 50,
       jitterMs: 10,
     }),
@@ -1036,54 +1074,17 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
           </div>
           <div>
             <h2 className="text-base font-black text-white tracking-wide flex items-center gap-2">
-              <span>Visual Macro &amp; Logic Studio</span>
+              <span>{isBn ? 'ভিজ্যুয়াল ম্যাক্রো স্টুডিও' : 'Visual Macro Studio'}</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#162b16] text-[#39ff14] border border-[#39ff14]/50 font-mono">
-                AIM/OPT Pro v3.5
+                Pro v3.5
               </span>
             </h2>
             <p className="text-xs text-[#8892b0]">
-              Node Graph Engine with Condition Branches, Typed Sockets, DAG Auto-Arranger &amp; Variables
+              {isBn
+                ? 'নোড গ্রাফ ইঞ্জিন, কন্ডিশন ব্রাঞ্চ, অটো অ্যারেঞ্জার এবং ভ্যারিয়েবল কন্ট্রোল'
+                : 'Node Graph Engine with Condition Branches, Typed Sockets, DAG Auto-Arranger & Variables'}
             </p>
           </div>
-        </div>
-
-        {/* Center Workspace Mode Switcher */}
-        <div className="flex items-center p-1 rounded-xl bg-[#090b10] border border-[#1f283d] space-x-1">
-          <button
-            onClick={() => setWorkspaceMode('nodeGraph')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-              workspaceMode === 'nodeGraph'
-                ? 'bg-[#00e5ff] text-black shadow-[0_0_12px_rgba(0,229,255,0.4)]'
-                : 'text-[#8892b0] hover:text-white'
-            }`}
-          >
-            <Grid className="w-3.5 h-3.5" />
-            <span>Node Graph</span>
-          </button>
-
-          <button
-            onClick={() => setWorkspaceMode('blockCoding')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-              workspaceMode === 'blockCoding'
-                ? 'bg-[#39ff14] text-black shadow-[0_0_12px_rgba(57,255,20,0.4)]'
-                : 'text-[#8892b0] hover:text-white'
-            }`}
-          >
-            <Boxes className="w-3.5 h-3.5" />
-            <span>Block Coding</span>
-          </button>
-
-          <button
-            onClick={() => setWorkspaceMode('csharpView')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-              workspaceMode === 'csharpView'
-                ? 'bg-[#a855f7] text-white shadow-[0_0_12px_rgba(168,85,247,0.4)]'
-                : 'text-[#8892b0] hover:text-white'
-            }`}
-          >
-            <Code2 className="w-3.5 h-3.5" />
-            <span>C# Code</span>
-          </button>
         </div>
 
         {/* Right Action Tools */}
@@ -1110,18 +1111,6 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
             </button>
           )}
 
-          {/* Variables Modal Button */}
-          {workspaceMode === 'nodeGraph' && (
-            <button
-              onClick={() => setIsVariablesModalOpen(true)}
-              className="h-9 px-3 rounded-xl bg-[#1e142b] hover:bg-[#2e1d42] text-[#a855f7] border border-[#a855f7]/40 font-bold text-xs flex items-center space-x-1 cursor-pointer transition-all shadow-[0_0_10px_rgba(168,85,247,0.2)]"
-              title="Manage Global Macro Variables"
-            >
-              <Variable className="w-3.5 h-3.5" />
-              <span>Variables ({variables.length})</span>
-            </button>
-          )}
-
           {/* Undo Button */}
           {workspaceMode === 'nodeGraph' && (
             <button
@@ -1143,18 +1132,6 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
               title="Redo Next Action (Ctrl+Y)"
             >
               <Redo2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {/* Action Crafter */}
-          {workspaceMode === 'nodeGraph' && (
-            <button
-              onClick={() => setIsCrafterOpen(true)}
-              className="h-9 px-3 rounded-xl bg-[#1d122b] hover:bg-[#2e1c45] text-[#a855f7] border border-[#a855f7]/60 font-black text-xs flex items-center space-x-1.5 cursor-pointer transition-all shadow-[0_0_10px_rgba(168,85,247,0.2)]"
-              title="Create Custom Action via Action Crafter Studio"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>+ Crafter</span>
             </button>
           )}
 
@@ -1220,10 +1197,10 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
           <div className="flex items-center space-x-2 min-w-0">
             <button
               onClick={() => setIsBlockLibraryOpen(true)}
-              className="h-8 px-3 rounded-xl bg-[#00e5ff] hover:bg-[#33ebff] text-black font-black text-xs flex items-center space-x-1.5 shrink-0 transition-all cursor-pointer shadow-[0_0_12px_rgba(0,229,255,0.3)]"
+              className="h-8 px-3 rounded-xl bg-[#00e5ff] hover:bg-[#33ebff] text-black font-black text-xs flex items-center space-x-1.5 shrink-0 transition-all cursor-pointer shadow-[0_0_12px_rgba(0,229,255,0.3)] hover:scale-105"
             >
               <Plus className="w-4 h-4" />
-              <span>Block Library</span>
+              <span>{t.actionLibrary}</span>
             </button>
 
             {/* Horizontal Scroll Palette */}
@@ -1758,63 +1735,65 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
 
       {/* Block Coding Workspace (Sketchware Architecture) */}
       {workspaceMode === 'blockCoding' && (
-        <div className="w-full h-[calc(100vh-230px)] min-h-[580px] max-h-[860px] rounded-2xl overflow-hidden border-2 border-[#1f283d] shadow-2xl">
-          <BlockCodingWorkspace
-            blocks={blocks}
-            onUpdateBlocks={setBlocks}
-            variables={variables}
-            onUpdateVariables={setVariables}
-            customBlocks={customBlocks}
-            onUpdateCustomBlocks={setCustomBlocks}
-            snapshots={versionSnapshots}
-            onCreateSnapshot={handleCreateSnapshot}
-            onRestoreSnapshot={handleRestoreSnapshot}
-            onDeleteSnapshot={handleDeleteSnapshot}
-            onAutoSaveTrigger={handleAutoSave}
-          />
-        </div>
-      )}
+        <div className="space-y-2">
+          {/* Under Construction Red Alert Warning Banner */}
+          <div className="bg-gradient-to-r from-red-950/95 via-red-900/90 to-red-950/95 border-2 border-red-500/80 rounded-2xl p-3 sm:p-4 shadow-[0_0_25px_rgba(239,68,68,0.3)] flex flex-wrap items-center justify-between gap-3 text-white">
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="p-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs sm:text-sm font-black text-red-200 flex items-center gap-2 flex-wrap">
+                  <span>⚠️ সতর্কতা: ব্লক কোডিং এখনো আন্ডার কনস্ট্রাকশনে (Under Construction) রয়েছে!</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/30 text-red-300 font-mono uppercase tracking-wider border border-red-500/50">
+                    Experimental
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-red-300/85 mt-0.5">
+                  এটি এখনো সম্পূর্ণভাবে প্রস্তুত নয়। ব্যবহার না করার পরামর্শ দেওয়া হচ্ছে অথবা ব্যবহার করলেও কাঙ্ক্ষিত ফলাফল নাও পেতে পারেন।
+                </p>
+              </div>
+            </div>
 
-      {/* C# Transpiled View */}
-      {workspaceMode === 'csharpView' && (
-        <div className="bg-[#090b10] rounded-2xl p-6 border-2 border-[#1f283d] shadow-2xl space-y-4 font-mono text-xs text-[#ccd6f6]">
-          <div className="flex items-center justify-between border-b border-[#1f283d] pb-3">
-            <span className="font-extrabold text-[#39ff14] text-sm flex items-center gap-2">
-              <Code2 className="w-4 h-4" />
-              <span>C# Production Script Output (.NET 8 Roslyn Engine)</span>
-            </span>
+            <button
+              onClick={() => setWorkspaceMode('nodeGraph')}
+              className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs flex items-center space-x-1.5 shadow-[0_0_12px_rgba(239,68,68,0.5)] cursor-pointer transition-all hover:scale-105 shrink-0"
+              title="Return to safe Node Graph mode"
+            >
+              <Grid className="w-4 h-4 text-white" />
+              <span>↩️ ফিরে যান Node Graph-এ</span>
+            </button>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <div className="text-[11px] font-bold text-[#00e5ff] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Grid className="w-3.5 h-3.5" />
-                <span>1. Node Graph Transpiled C# Class:</span>
-              </div>
-              <pre className="p-4 rounded-xl bg-[#05070c] border border-[#1b2538] leading-relaxed overflow-x-auto text-[#00e5ff]">
-                <code>{transpileGraphToCSharp(nodes)}</code>
-              </pre>
-            </div>
-
-            <div>
-              <div className="text-[11px] font-bold text-[#39ff14] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Boxes className="w-3.5 h-3.5" />
-                <span>2. Interlocking Block Transpiled C# Script:</span>
-              </div>
-              <pre className="p-4 rounded-xl bg-[#05070c] border border-[#1b2538] leading-relaxed overflow-x-auto text-[#39ff14]">
-                <code>{transpileBlocksToCSharp(blocks)}</code>
-              </pre>
-            </div>
+          <div className="w-full h-[calc(100vh-300px)] min-h-[540px] max-h-[820px] rounded-2xl overflow-hidden border-2 border-[#1f283d] shadow-2xl">
+            <BlockCodingWorkspace
+              blocks={blocks}
+              onUpdateBlocks={setBlocks}
+              variables={variables}
+              onUpdateVariables={setVariables}
+              customBlocks={customBlocks}
+              onUpdateCustomBlocks={setCustomBlocks}
+              snapshots={versionSnapshots}
+              onCreateSnapshot={handleCreateSnapshot}
+              onRestoreSnapshot={handleRestoreSnapshot}
+              onDeleteSnapshot={handleDeleteSnapshot}
+              onAutoSaveTrigger={handleAutoSave}
+            />
           </div>
         </div>
       )}
 
-      {/* Block Library Drawer */}
+      {/* Action Library Drawer */}
       <BlockLibraryDrawer
         isOpen={isBlockLibraryOpen}
         onClose={() => setIsBlockLibraryOpen(false)}
         onSelectBlock={handleAddNodeFromTemplate}
         customActions={customActions}
+        onOpenCrafter={() => {
+          setIsBlockLibraryOpen(false);
+          setIsCrafterOpen(true);
+        }}
+        lang={lang}
       />
 
       {/* Node Properties Inspector Drawer */}
@@ -1873,6 +1852,44 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
         onChange={handleImportFileSelected}
       />
 
+      {/* INTEGRATED TEST SIMULATION CONSOLE */}
+      <TestSimulationConsole
+        logs={executionLogs}
+        isSimulating={isMacroRunning}
+        onStartSimulation={handleRunSimulation}
+        onStopSimulation={handleStopSimulation}
+        onClearLogs={() => setExecutionLogs([])}
+        lang={lang}
+      />
+
+      {/* ADD TO MACRO LIBRARY BUTTON */}
+      {onExportToLibrary && (
+        <div className="mt-3">
+          <button
+            id="btn-visual-add-to-library"
+            onClick={handleExportToLibrary}
+            className="w-full h-12 rounded-xl bg-[#162b16] hover:bg-[#1f3f1f] text-[#39ff14] border-2 border-[#39ff14] font-black text-xs flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(57,255,20,0.3)] cursor-pointer transition-all hover:scale-[1.01]"
+          >
+            <Plus className="w-5 h-5 stroke-[3]" />
+            <span>{isBn ? '➕ ম্যাক্রো লাইব্রেরিতে যুক্ত করুন' : '➕ Add to Macro Library'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* ADD TO MACRO LIBRARY BUTTON */}
+      {onExportToLibrary && (
+        <div className="mt-3">
+          <button
+            id="btn-visual-add-to-library"
+            onClick={handleExportToLibrary}
+            className="w-full h-12 rounded-xl bg-[#162b16] hover:bg-[#1f3f1f] text-[#39ff14] border-2 border-[#39ff14] font-black text-xs flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(57,255,20,0.3)] cursor-pointer transition-all hover:scale-[1.01]"
+          >
+            <Plus className="w-5 h-5 stroke-[3]" />
+            <span>{isBn ? '➕ ম্যাক্রো লাইব্রেরিতে যুক্ত করুন' : '➕ Add to Macro Library'}</span>
+          </button>
+        </div>
+      )}
+
       {/* Preset Macro Templates Library Modal */}
       <MacroTemplatesModal
         isOpen={isTemplatesModalOpen}
@@ -1893,6 +1910,20 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
       <UserManualModal
         isOpen={isManualGuideOpen}
         onClose={() => setIsManualGuideOpen(false)}
+        lang={lang}
+      />
+
+      {/* Block Coding 3-Step Under Construction Confirmation Modal */}
+      <BlockUnderConstructionModal
+        isOpen={isConstructionModalOpen}
+        onClose={() => {
+          setIsConstructionModalOpen(false);
+          setWorkspaceMode('nodeGraph');
+        }}
+        onConfirmAccess={() => {
+          setIsConstructionModalOpen(false);
+          setWorkspaceMode('blockCoding');
+        }}
         lang={lang}
       />
     </div>
