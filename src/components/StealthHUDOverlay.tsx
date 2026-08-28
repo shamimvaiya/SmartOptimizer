@@ -52,6 +52,10 @@ export const StealthHUDOverlay: React.FC<StealthHUDOverlayProps> = ({
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [showMiniTerminal, setShowMiniTerminal] = useState<boolean>(false);
 
+  // Live Input & Mouse Coordinates Tracking State
+  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [lastInputKey, setLastInputKey] = useState<string>('L-CLICK');
+
   // Session Hotkey Recording state inside HUD
   const [currentHotkey, setCurrentHotkey] = useState<string>(hotkey);
   const [isRecordingHotkey, setIsRecordingHotkey] = useState<boolean>(false);
@@ -61,6 +65,32 @@ export const StealthHUDOverlay: React.FC<StealthHUDOverlayProps> = ({
   useEffect(() => {
     setCurrentHotkey(hotkey);
   }, [hotkey]);
+
+  // Track live mouse position and keypresses for HUD telemetry
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    };
+    const handleGlobalMouseDown = (e: MouseEvent) => {
+      const btn = e.button === 0 ? 'L-CLICK' : e.button === 2 ? 'R-CLICK' : 'M-CLICK';
+      setLastInputKey(btn);
+    };
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key.length === 1 || e.key.startsWith('F')) {
+        setLastInputKey(e.key.toUpperCase());
+      }
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mousedown', handleGlobalMouseDown);
+    window.addEventListener('keydown', handleGlobalKeyDown);
+
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mousedown', handleGlobalMouseDown);
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, []);
 
   // Auto-hide countdown
   useEffect(() => {
@@ -92,7 +122,7 @@ export const StealthHUDOverlay: React.FC<StealthHUDOverlayProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
         setPosition({
-          x: Math.max(10, Math.min(window.innerWidth - 300, e.clientX - dragOffset.x)),
+          x: Math.max(10, Math.min(window.innerWidth - 260, e.clientX - dragOffset.x)),
           y: Math.max(10, Math.min(window.innerHeight - 180, e.clientY - dragOffset.y)),
         });
       }
@@ -145,16 +175,16 @@ export const StealthHUDOverlay: React.FC<StealthHUDOverlayProps> = ({
         isDimmed ? 'scale-90 hover:scale-100 hover:opacity-100' : ''
       }`}
     >
-      <div className="w-80 rounded-2xl bg-[#0d0d12]/95 backdrop-blur-md border-2 border-[#39ff14] shadow-[0_0_25px_rgba(57,255,20,0.4)] overflow-hidden breathing-glow">
-        {/* Drag Bar Header */}
+      <div className="w-64 rounded-2xl bg-[#090a12]/95 backdrop-blur-md border border-[#39ff14]/70 shadow-[0_0_20px_rgba(57,255,20,0.3)] overflow-hidden">
+        {/* Compact Drag Bar Header */}
         <div
           onMouseDown={handleMouseDown}
-          className="h-9 px-3 bg-[#162b16] border-b border-[#39ff14]/40 flex items-center justify-between cursor-move"
+          className="h-8 px-2.5 bg-[#122213] border-b border-[#39ff14]/40 flex items-center justify-between cursor-move"
         >
           <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#39ff14] animate-pulse"></span>
-            <span className="text-xs font-black text-[#39ff14] tracking-wider">
-              AIM/OPT STEALTH HUD
+            <span className="w-2 h-2 rounded-full bg-[#39ff14] animate-pulse"></span>
+            <span className="text-[10px] font-black text-[#39ff14] tracking-wider">
+              STEALTH HUD
             </span>
           </div>
 
@@ -162,23 +192,23 @@ export const StealthHUDOverlay: React.FC<StealthHUDOverlayProps> = ({
             {/* Terminal Toggle Icon */}
             <button
               onClick={() => setShowMiniTerminal((prev) => !prev)}
-              className={`p-1 rounded cursor-pointer transition-colors ${
+              className={`p-0.5 rounded cursor-pointer transition-colors ${
                 showMiniTerminal
                   ? 'bg-[#39ff14] text-black'
                   : 'text-[#8892b0] hover:text-[#00e5ff] hover:bg-[#15242b]'
               }`}
-              title="Toggle Live In-Game Terminal Logs"
+              title="Toggle Live Logs"
             >
-              <Terminal className="w-3.5 h-3.5" />
+              <Terminal className="w-3 h-3" />
             </button>
 
-            {/* Double-Click Session Hotkey Recorder Badge */}
+            {/* Session Hotkey Recorder Badge */}
             <span
               tabIndex={0}
               onDoubleClick={() => setIsRecordingHotkey(true)}
               onKeyDown={handleKeyDownHotkeyRecord}
               onBlur={() => setIsRecordingHotkey(false)}
-              className={`text-[10px] font-mono font-black px-1.5 py-0.5 rounded border cursor-pointer select-none transition-all ${
+              className={`text-[9px] font-mono font-black px-1.5 py-0.5 rounded border cursor-pointer select-none transition-all ${
                 isRecordingHotkey
                   ? 'bg-[#182a18] text-[#39ff14] border-[#39ff14] animate-pulse'
                   : 'bg-[#101016] text-[#8892b0] border-[#252733] hover:text-[#39ff14]'
@@ -191,92 +221,103 @@ export const StealthHUDOverlay: React.FC<StealthHUDOverlayProps> = ({
             <button
               id="btn-close-hud"
               onClick={onClose}
-              className="p-1 text-[#8892b0] hover:text-[#ff4444] rounded hover:bg-[#201416] cursor-pointer"
+              className="p-0.5 text-[#8892b0] hover:text-[#ff4444] rounded hover:bg-[#201416] cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-3 h-3" />
             </button>
           </div>
         </div>
 
         {/* NEON MARQUEE ACTIVE MACRO BAR & END PROCESS BUTTON */}
         {isMacroActive && (
-          <div className="px-3 py-1.5 bg-[#0a180a] border-b border-[#39ff14]/30 flex items-center justify-between space-x-2">
-            <div className="flex items-center space-x-2 min-w-0 flex-1 overflow-hidden">
-              <span className="w-2 h-2 rounded-full bg-[#39ff14] shrink-0 animate-ping" />
-              <div className="overflow-hidden whitespace-nowrap text-[11px] font-mono font-bold text-[#39ff14]">
+          <div className="px-2.5 py-1 bg-[#09150a] border-b border-[#39ff14]/30 flex items-center justify-between space-x-1.5">
+            <div className="flex items-center space-x-1.5 min-w-0 flex-1 overflow-hidden">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#39ff14] shrink-0 animate-ping" />
+              <div className="overflow-hidden whitespace-nowrap text-[10px] font-mono font-bold text-[#39ff14]">
                 <div className="inline-block animate-marquee">
-                  ⚡ ACTIVE MACRO: {activeMacroName} &nbsp;●&nbsp; DIRECTINPUT HOOK ARMED &nbsp;●&nbsp; BÉZIER HUMANIZER 100% ACTIVE
+                  ⚡ {activeMacroName} &nbsp;●&nbsp; HOOK ARMED &nbsp;●&nbsp; BÉZIER 100%
                 </div>
               </div>
             </div>
 
-            {/* END PROCESS / STOP MACRO SESSION BUTTON */}
             <button
               id="btn-stop-macro-session-hud"
               onClick={onStopMacroProcess}
-              className="px-2 py-0.5 rounded-md bg-[#2a1416] hover:bg-[#3d181b] text-[#ff4444] border border-[#ff4444]/60 font-black text-[10px] flex items-center space-x-1 shrink-0 cursor-pointer shadow-[0_0_8px_rgba(255,68,68,0.3)]"
+              className="px-1.5 py-0.5 rounded bg-[#2a1416] hover:bg-[#3d181b] text-[#ff4444] border border-[#ff4444]/60 font-black text-[9px] flex items-center space-x-1 shrink-0 cursor-pointer"
               title="Terminate running macro process"
             >
-              <Square className="w-3 h-3 fill-current" />
+              <Square className="w-2.5 h-2.5 fill-current" />
               <span>END</span>
             </button>
           </div>
         )}
 
         {/* Telemetry Display */}
-        <div className="p-3.5 space-y-2.5">
-          {/* Main FPS Banner */}
-          <div className="flex items-center justify-between bg-[#121218] p-2.5 rounded-xl border border-[#252733]">
-            <div className="text-[11px] font-bold text-[#8892b0]">GAME REFRESH</div>
-            <div className="text-xl font-black text-[#39ff14] font-mono drop-shadow-[0_0_8px_rgba(57,255,20,0.6)]">
-              {telemetry?.isEmulatorRunning ? `${telemetry.currentFps} FPS` : '144 FPS'}
+        <div className="p-2.5 space-y-2">
+          {/* Main FPS & Live Mouse Tracking Pill */}
+          <div className="flex items-center justify-between bg-[#0e0f18] p-2 rounded-xl border border-[#202235]">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-[#8892b0]">GAME FPS</span>
+              <span className="text-base font-black text-[#39ff14] font-mono leading-none mt-0.5">
+                {telemetry?.isEmulatorRunning ? `${telemetry.currentFps}` : '144'}
+              </span>
+            </div>
+
+            {/* LIVE INPUT MOUSE TRACKING */}
+            <div className="flex flex-col items-end text-right">
+              <span className="text-[9px] font-mono text-[#00e5ff] font-bold flex items-center gap-1">
+                <span>POS: {mousePos.x},{mousePos.y}</span>
+              </span>
+              <span className="text-[9px] font-mono text-[#ffd600] font-bold mt-0.5">
+                KEY: [{lastInputKey}]
+              </span>
             </div>
           </div>
 
           {/* CPU & RAM Grid */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-[#121218] p-2 rounded-xl border border-[#252733] flex flex-col">
-              <span className="text-[9px] font-bold text-[#64748b] uppercase">CPU LOAD</span>
-              <span className="text-sm font-bold text-[#00e5ff] font-mono mt-0.5">
+          <div className="grid grid-cols-2 gap-1.5 text-center font-mono">
+            <div className="bg-[#0e0f18] p-1.5 rounded-lg border border-[#202235]">
+              <span className="text-[8px] font-bold text-[#64748b] block">CPU</span>
+              <span className="text-xs font-bold text-[#00e5ff]">
                 {telemetry ? `${telemetry.cpuPercentage}%` : '12%'}
               </span>
             </div>
 
-            <div className="bg-[#121218] p-2 rounded-xl border border-[#252733] flex flex-col">
-              <span className="text-[9px] font-bold text-[#64748b] uppercase">RAM FLUSHED</span>
-              <span className="text-sm font-bold text-[#d500f9] font-mono mt-0.5">
-                {telemetry ? `${telemetry.ramUsageMb} MB` : '1980 MB'}
+            <div className="bg-[#0e0f18] p-1.5 rounded-lg border border-[#202235]">
+              <span className="text-[8px] font-bold text-[#64748b] block">RAM</span>
+              <span className="text-xs font-bold text-[#d500f9]">
+                {telemetry ? `${telemetry.ramUsageMb}M` : '1980M'}
               </span>
             </div>
           </div>
 
           {/* Expandable Live Terminal Drawer */}
           {showMiniTerminal && (
-            <div className="p-2.5 rounded-xl bg-[#06070a] border border-[#26283d] space-y-1.5 animate-in fade-in duration-150">
-              <div className="flex items-center justify-between text-[10px] font-mono font-bold text-[#00e5ff] border-b border-[#181a28] pb-1">
+            <div className="p-2 rounded-xl bg-[#06070a] border border-[#26283d] space-y-1 animate-in fade-in duration-150">
+              <div className="flex items-center justify-between text-[9px] font-mono font-bold text-[#00e5ff] border-b border-[#181a28] pb-1">
                 <span className="flex items-center gap-1">
-                  <Terminal className="w-3 h-3" />
-                  <span>LIVE INJECTOR LOGS</span>
+                  <Terminal className="w-2.5 h-2.5" />
+                  <span>LOGS</span>
                 </span>
-                <span className="text-[9px] text-[#64748b]">{logs.length} events</span>
+                <span className="text-[8px] text-[#64748b]">{logs.length} events</span>
               </div>
-              <div className="h-28 overflow-y-auto font-mono text-[10px] text-[#39ff14] space-y-1 pr-1">
+              <div className="h-20 overflow-y-auto font-mono text-[9px] text-[#39ff14] space-y-0.5 pr-0.5">
                 {logs.length > 0 ? (
-                  logs.slice(-6).map((log, idx) => (
-                    <div key={idx} className="leading-tight break-all text-[9.5px]">
+                  logs.slice(-5).map((log, idx) => (
+                    <div key={idx} className="leading-tight break-all">
                       {log}
                     </div>
                   ))
                 ) : (
-                  <div className="text-[#64748b] italic">No active logs recorded yet.</div>
+                  <div className="text-[#64748b] italic">No active logs recorded.</div>
                 )}
               </div>
             </div>
           )}
 
           {/* Profile & Status Footer */}
-          <div className="pt-2 border-t border-[#1f202b] flex items-center justify-between text-[10px]">
-            <span className="text-[#8892b0] truncate max-w-[150px] font-semibold">
+          <div className="pt-1.5 border-t border-[#1a1c2b] flex items-center justify-between text-[9px]">
+            <span className="text-[#8892b0] truncate max-w-[120px] font-semibold">
               Profile: <strong className="text-white">{activePresetName}</strong>
             </span>
             <span className="text-[#39ff14] font-extrabold flex items-center gap-1">

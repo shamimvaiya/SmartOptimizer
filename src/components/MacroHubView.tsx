@@ -30,18 +30,28 @@ import {
   Boxes,
   AlertTriangle,
   FolderPlus,
+  Edit2,
+  HardDrive,
 } from 'lucide-react';
-import { MacroProfileItem } from '../types';
+import { MacroProfileItem, PresetProfile, MacroNode } from '../types';
 import { DEFAULT_MACROS } from '../data/defaultMacros';
 import { CodeMacroEditor } from './CodeMacroEditor';
 import { VisualMacroStudio } from './VisualMacroStudio';
 import { BlockCodingWorkspace } from './BlockCodingWorkspace';
+import { PublishToLibraryModal } from './PublishToLibraryModal';
+import { MacroFileExplorerModal } from './MacroFileExplorerModal';
 
 interface MacroHubViewProps {
   isBn?: boolean;
   onExecuteToEmulator?: (macro: MacroProfileItem) => void;
   executedMacroIds?: string[];
   onToggleMacroState?: (id: string, isEnabled: boolean) => void;
+  activePreset?: PresetProfile | null;
+  onSaveGraph?: (graph: MacroNode[]) => Promise<void>;
+  onLog?: (msg: string) => void;
+  onRunMacro?: (graph: MacroNode[]) => Promise<void>;
+  onStopMacro?: () => Promise<void>;
+  isMacroRunning?: boolean;
 }
 
 export const MacroHubView: React.FC<MacroHubViewProps> = ({
@@ -49,6 +59,12 @@ export const MacroHubView: React.FC<MacroHubViewProps> = ({
   onExecuteToEmulator,
   executedMacroIds = ['macro_recoil_compensator', 'macro_multitrack_combat', 'macro_humanizer_engine', 'macro_180_defensive_turn'],
   onToggleMacroState,
+  activePreset,
+  onSaveGraph,
+  onLog,
+  onRunMacro,
+  onStopMacro,
+  isMacroRunning,
 }) => {
   // Studio Mode: 'library' | 'code' | 'visual' | 'block'
   const [activeTab, setActiveTab] = useState<'library' | 'code' | 'visual' | 'block'>('library');
@@ -163,6 +179,22 @@ export const MacroHubView: React.FC<MacroHubViewProps> = ({
 
   // Hotkey recording state directly on library card
   const [recordingHotkeyMacroId, setRecordingHotkeyMacroId] = useState<string | null>(null);
+
+  // Publish to Library Modal State
+  const [publishModalState, setPublishModalState] = useState<{
+    isOpen: boolean;
+    name: string;
+    content: string;
+    originStudio: 'code' | 'visual' | 'block';
+  }>({
+    isOpen: false,
+    name: '',
+    content: '',
+    originStudio: 'code',
+  });
+
+  // PC File Directory Explorer Modal State
+  const [fileExplorerModalMacro, setFileExplorerModalMacro] = useState<MacroProfileItem | null>(null);
 
   // Floating Execution Terminal State
   const [executionModal, setExecutionModal] = useState<{
@@ -344,29 +376,16 @@ export const MacroHubView: React.FC<MacroHubViewProps> = ({
   });
 
   const handleExportFromSubStudio = (name: string, content: string) => {
-    const newMacro: MacroProfileItem = {
-      id: `macro_export_${Date.now()}`,
-      name: `${name} (Exported)`,
-      category: 'utility',
-      hotkey: 'F10',
-      isEnabled: true,
-      isExecuted: false,
-      tags: ['Exported', 'Library'],
-      executionLayers: ['DirectInput IOCTL Pipe'],
-      descriptionEn: 'Exported from internal design studio.',
-      descriptionBn: 'অভ্যন্তরীণ ডিজাইন স্টুডিও থেকে এক্সপোর্ট করা ম্যাক্রো।',
-      usageGuideEn: 'Activate in game using hotkey.',
-      usageGuideBn: 'হট-কি প্রেস করে গেমের মধ্যে সক্রিয় করুন।',
-      inGameSettingsEn: 'Default layout.',
-      inGameSettingsBn: 'ডিফল্ট লেআউট।',
-      developerGuideEn: 'JSON structure stored in library.',
-      developerGuideBn: 'JSON স্ট্রাকচার লাইব্রেরিতে সংরক্ষিত।',
-      codeScript: content,
-      version: 'v1.0',
-      author: 'Studio Export',
-      createdDate: new Date().toISOString().split('T')[0],
-    };
-    handleCreateNewMacro(newMacro);
+    let origin: 'code' | 'visual' | 'block' = 'code';
+    if (activeTab === 'visual') origin = 'visual';
+    if (activeTab === 'block') origin = 'block';
+
+    setPublishModalState({
+      isOpen: true,
+      name,
+      content,
+      originStudio: origin,
+    });
   };
 
   return (
@@ -589,45 +608,50 @@ export const MacroHubView: React.FC<MacroHubViewProps> = ({
             </div>
           </div>
 
-          {/* Macros Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Responsive 3D Cards Grid (Max 3 columns for clean, spacious presentation) */}
+          <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4.5">
             {filteredMacros.map((macro) => {
               const isGuideOpen = expandedGuideId === macro.id;
-              const isDevGuideOpen = expandedDevGuideId === macro.id;
               const isExecuted = macro.isExecuted || executedMacroIds.includes(macro.id);
               const isRecording = recordingHotkeyMacroId === macro.id;
+              const origin = macro.originStudio || 'code';
+              const defaultStudio = macro.defaultStudio || origin;
 
               return (
                 <div
                   key={macro.id}
                   id={`macro-card-${macro.id}`}
-                  className={`rounded-2xl border-2 transition-all duration-300 p-5 relative overflow-hidden flex flex-col justify-between shadow-xl ${
+                  className={`rounded-2xl border-2 transition-all duration-300 p-5 relative overflow-hidden flex flex-col justify-between shadow-xl group hover:-translate-y-1 ${
                     macro.isEnabled
-                      ? 'bg-[#13141f] border-[#2c2f45] hover:border-[#39ff14]/70'
-                      : 'bg-[#101017] border-[#1d1e2b] opacity-75'
+                      ? 'bg-[#121422] border-[#292c42] hover:border-[#39ff14]/70 shadow-[0_10px_30px_rgba(0,0,0,0.5)]'
+                      : 'bg-[#0e0f18] border-[#1a1b26] opacity-75'
                   }`}
                 >
-                  <div>
-                    {/* Header Row */}
+                  <div className="space-y-3.5">
+                    {/* Header Row: Category Badge + Origin Badge */}
                     <div className="flex items-center justify-between pb-3 border-b border-[#1f202e] gap-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded bg-[#00e5ff]/15 text-[#00e5ff] border border-[#00e5ff]/40">
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                        <span className="text-[10px] font-mono font-black uppercase px-2.5 py-1 rounded-lg bg-[#00e5ff]/15 text-[#00e5ff] border border-[#00e5ff]/40 whitespace-nowrap">
                           {macro.category}
                         </span>
-                        <span className="text-[10px] font-mono text-[#8892b0]">
-                          {macro.version || 'v1.0'}
+
+                        {/* Origin Badge */}
+                        <span className="text-[10px] font-mono font-bold px-2 py-1 rounded-lg bg-[#1f2338] text-[#ffd600] border border-[#ffd600]/30 whitespace-nowrap flex items-center gap-1">
+                          {origin === 'code' && '📝 Code Editor'}
+                          {origin === 'visual' && '🔀 Visual Graph'}
+                          {origin === 'block' && '🧩 Block Coding'}
                         </span>
                       </div>
 
-                      {/* Right: Double-Click Hotkey Badge + Delete & Toggle */}
-                      <div className="flex items-center space-x-2">
+                      {/* Right: Double-Click Hotkey Badge + Delete */}
+                      <div className="flex items-center space-x-2 flex-shrink-0">
                         {/* Double-Click Recording Hotkey Badge */}
                         <div
                           tabIndex={0}
                           onDoubleClick={() => setRecordingHotkeyMacroId(macro.id)}
                           onKeyDown={(e) => handleKeyDownCardHotkey(e, macro.id)}
                           onBlur={() => setRecordingHotkeyMacroId(null)}
-                          className={`px-2 py-1 rounded-lg border font-mono font-black text-xs cursor-pointer select-none transition-all ${
+                          className={`px-2.5 py-1 rounded-lg border font-mono font-black text-xs cursor-pointer select-none transition-all ${
                             isRecording
                               ? 'bg-[#182a18] border-[#39ff14] text-[#39ff14] animate-pulse shadow-[0_0_10px_rgba(57,255,20,0.5)]'
                               : 'bg-[#0a0b10] border-[#39ff14]/50 text-[#39ff14] hover:border-[#39ff14]'
@@ -637,76 +661,137 @@ export const MacroHubView: React.FC<MacroHubViewProps> = ({
                           {isRecording ? 'PRESS KEY' : macro.hotkey}
                         </div>
 
-                        {/* Delete Button with Confirmation */}
+                        {/* Delete Button */}
                         <button
                           onClick={() => handleDeleteMacro(macro.id)}
-                          className="p-1 rounded-lg bg-[#241416] hover:bg-[#381a1d] text-[#ff4444] border border-[#ff4444]/40 cursor-pointer"
+                          className="p-1.5 rounded-lg bg-[#241416] hover:bg-[#381a1d] text-[#ff4444] border border-[#ff4444]/40 transition-colors cursor-pointer"
                           title="Delete macro"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
-
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={macro.isEnabled}
-                            onChange={() => handleToggleMacro(macro.id)}
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-[#252733] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#39ff14]"></div>
-                        </label>
                       </div>
                     </div>
 
                     {/* Title and Description */}
-                    <div className="mt-3.5">
-                      <h3 className="text-sm font-black text-white">{macro.name}</h3>
-                      <p className="text-xs text-[#94a3b8] mt-1.5 leading-relaxed">
+                    <div>
+                      <h3
+                        onClick={() => {
+                          if (defaultStudio === 'code') {
+                            handleAddToFileExplorer(macro);
+                          } else if (defaultStudio === 'visual') {
+                            handleSelectTab('visual');
+                          } else if (defaultStudio === 'block') {
+                            handleSelectTab('block');
+                          }
+                        }}
+                        className="text-sm font-black text-white hover:text-[#39ff14] cursor-pointer transition-colors line-clamp-1"
+                        title="Click to open in Default Studio"
+                      >
+                        {macro.name}
+                      </h3>
+                      <p className="text-xs text-[#8892b0] mt-1.5 leading-relaxed line-clamp-2">
                         {isBn ? macro.descriptionBn : macro.descriptionEn}
                       </p>
                     </div>
+
+                    {/* Default Studio Selector Dropdown */}
+                    <div className="pt-2.5 border-t border-[#1a1c2b] flex items-center justify-between text-xs font-mono">
+                      <span className="text-[#8892b0] font-bold">{isBn ? 'স্টুডিও:' : 'Open Studio:'}</span>
+                      <select
+                        value={defaultStudio}
+                        onChange={(e) => {
+                          const targetStudio = e.target.value as 'code' | 'visual' | 'block';
+                          setMacros((prev) =>
+                            prev.map((m) => (m.id === macro.id ? { ...m, defaultStudio: targetStudio } : m))
+                          );
+                          showToast(
+                            isBn
+                              ? `ডিফল্ট স্টুডিও [ ${targetStudio.toUpperCase()} ] সেট হয়েছে!`
+                              : `Default studio set to ${targetStudio.toUpperCase()}!`
+                          );
+                        }}
+                        className="bg-[#0b0c14] text-[#00e5ff] font-bold px-2.5 py-1 rounded-lg border border-[#26283d] outline-none cursor-pointer text-xs"
+                      >
+                        <option value="code">Code Editor</option>
+                        <option value="visual">Visual Graph</option>
+                        <option value="block">Block Coding</option>
+                      </select>
+                    </div>
+
+                    {/* EXPANDABLE GUIDE PANEL */}
+                    {isGuideOpen && (
+                      <div className="mt-3 p-3.5 rounded-xl bg-[#090a12] border border-[#1e233d] text-xs space-y-2 animate-in fade-in duration-150">
+                        <div className="font-bold text-[#00e5ff] flex items-center space-x-1.5">
+                          <BookOpen className="w-4 h-4 text-[#00e5ff]" />
+                          <span>{isBn ? 'ব্যবহারবিধি ও গাইড:' : 'Usage Instructions:'}</span>
+                        </div>
+                        <p className="text-[#c1c9e0] leading-relaxed whitespace-pre-line text-xs font-mono">
+                          {isBn ? macro.usageGuideBn : macro.usageGuideEn}
+                        </p>
+                        {macro.inGameSettingsEn && (
+                          <div className="pt-2 border-t border-[#181c2e] text-[11px] text-[#ffd600] font-mono">
+                            <strong>{isBn ? 'ইন-গেম সেনসিটিভিটি: ' : 'In-Game Sens: '}</strong>
+                            {isBn ? macro.inGameSettingsBn : macro.inGameSettingsEn}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Card Bottom Controls */}
-                  <div className="mt-4 pt-3 border-t border-[#1f202e] flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center space-x-2">
+                  <div className="mt-4 pt-3 border-t border-[#1a1c2b] flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                       <button
-                        onClick={() => {
-                          setExpandedGuideId(isGuideOpen ? null : macro.id);
-                          setExpandedDevGuideId(null);
-                        }}
-                        className={`text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center space-x-1 transition-colors cursor-pointer ${
+                        onClick={() => setExpandedGuideId(isGuideOpen ? null : macro.id)}
+                        className={`text-xs font-bold px-2 py-1.5 rounded-xl flex items-center space-x-1 transition-all cursor-pointer whitespace-nowrap ${
                           isGuideOpen ? 'bg-[#00e5ff]/20 text-[#00e5ff] border border-[#00e5ff]/40' : 'text-[#8892b0] hover:text-white bg-[#161724]'
                         }`}
                       >
-                        <BookOpen className="w-3 h-3" />
-                        <span>{isBn ? 'ব্যবহার বিধি' : 'Guide'}</span>
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>{isBn ? 'গাইড' : 'Guide'}</span>
                       </button>
 
-                      {/* ADD TO FILE EXPLORER BUTTON */}
+                      {/* FILE EXPLORER / EDIT BUTTON */}
                       <button
-                        onClick={() => handleAddToFileExplorer(macro)}
-                        className="text-xs font-bold px-2.5 py-1.5 rounded-lg text-[#00e5ff] bg-[#141d26] hover:bg-[#1a2838] border border-[#00e5ff]/40 flex items-center space-x-1 cursor-pointer"
-                        title="Open script in Code Editor File Explorer"
+                        onClick={() => {
+                          if (defaultStudio === 'code') {
+                            handleAddToFileExplorer(macro);
+                          } else if (defaultStudio === 'visual') {
+                            handleSelectTab('visual');
+                          } else if (defaultStudio === 'block') {
+                            handleSelectTab('block');
+                          }
+                        }}
+                        className="text-xs font-bold px-2 py-1.5 rounded-xl text-[#00e5ff] bg-[#141d26] hover:bg-[#1a2838] border border-[#00e5ff]/40 flex items-center space-x-1.5 cursor-pointer whitespace-nowrap"
+                        title="Edit in selected studio"
                       >
-                        <FolderPlus className="w-3 h-3" />
-                        <span>{isBn ? 'ফাইল এক্সপ্লোরার' : 'Explorer'}</span>
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>{isBn ? 'এডিট' : 'Edit'}</span>
+                      </button>
+
+                      {/* PC FILE SYSTEM PATH & EXPORT BUTTON */}
+                      <button
+                        onClick={() => setFileExplorerModalMacro(macro)}
+                        className="text-xs font-bold px-2 py-1.5 rounded-xl text-[#ffd600] bg-[#211d08] hover:bg-[#332b0a] border border-[#ffd600]/40 flex items-center space-x-1.5 cursor-pointer whitespace-nowrap"
+                        title="View PC File Directory & Export Options"
+                      >
+                        <HardDrive className="w-3.5 h-3.5" />
+                        <span>{isBn ? 'পিসি এক্সপ্লোরার' : 'Explorer'}</span>
                       </button>
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleExecuteIntoEmulator(macro)}
-                        className={`px-3.5 py-1.5 rounded-xl font-black text-xs flex items-center space-x-1.5 transition-all cursor-pointer ${
-                          isExecuted
-                            ? 'bg-[#162b16] text-[#39ff14] border border-[#39ff14] shadow-[0_0_10px_rgba(57,255,20,0.3)]'
-                            : 'bg-[#181926] hover:bg-[#22263d] text-white border border-[#2e3146]'
-                        }`}
-                      >
-                        <Zap className="w-3.5 h-3.5" />
-                        <span>{isExecuted ? (isBn ? '✅ চালু আছে' : '✅ Active') : (isBn ? '⚡ চালু করুন' : '⚡ Run')}</span>
-                      </button>
-                    </div>
+                    {/* EXECUTE / STOP TOGGLE SWITCH */}
+                    <button
+                      onClick={() => handleExecuteIntoEmulator(macro)}
+                      className={`px-3 py-1.5 rounded-xl font-black text-xs flex items-center space-x-1.5 transition-all cursor-pointer whitespace-nowrap ml-auto ${
+                        isExecuted
+                          ? 'bg-[#ff0055] text-white border border-[#ff0055] shadow-[0_0_12px_rgba(255,0,85,0.4)] animate-pulse'
+                          : 'bg-[#162b16] hover:bg-[#1f3f1f] text-[#39ff14] border border-[#39ff14] shadow-[0_0_10px_rgba(57,255,20,0.2)]'
+                      }`}
+                    >
+                      <Zap className="w-3.5 h-3.5 fill-current" />
+                      <span>{isExecuted ? (isBn ? '⏹️ থামান' : '⏹️ Stop') : (isBn ? '⚡ Execute' : '⚡ Execute')}</span>
+                    </button>
                   </div>
                 </div>
               );
@@ -737,9 +822,20 @@ export const MacroHubView: React.FC<MacroHubViewProps> = ({
       {activeTab === 'visual' && (
         <div className="rounded-2xl border border-[#222436] overflow-hidden bg-[#101117]">
           <VisualMacroStudio 
-          isBn={isBn} 
-          onExportToLibrary={handleExportFromSubStudio}
-        />
+            key={activePreset?.id || activePreset?.name || 'default_visual_studio'}
+            initialGraph={activePreset?.macroGraph || []}
+            onSaveGraph={async (savedGraph) => {
+              if (onSaveGraph) {
+                await onSaveGraph(savedGraph);
+              }
+            }}
+            onLog={onLog}
+            onRunMacro={onRunMacro}
+            onStopMacro={onStopMacro}
+            isMacroRunning={isMacroRunning}
+            isBn={isBn} 
+            onExportToLibrary={handleExportFromSubStudio}
+          />
         </div>
       )}
 
@@ -986,6 +1082,32 @@ export const MacroHubView: React.FC<MacroHubViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* PUBLISH TO LIBRARY MODAL */}
+      <PublishToLibraryModal
+        isOpen={publishModalState.isOpen}
+        onClose={() => setPublishModalState((prev) => ({ ...prev, isOpen: false }))}
+        onPublish={(newMacro) => {
+          handleCreateNewMacro(newMacro);
+          showToast(
+            isBn
+              ? `ম্যাক্রো "${newMacro.name}" সফলভাবে লাইব্রেরিতে পাবলিশ হয়েছে!`
+              : `Macro "${newMacro.name}" published to library!`
+          );
+        }}
+        isBn={isBn}
+        initialName={publishModalState.name}
+        initialContent={publishModalState.content}
+        originStudio={publishModalState.originStudio}
+      />
+
+      {/* PC FILE EXPLORER & EXPORT MODAL */}
+      <MacroFileExplorerModal
+        isOpen={Boolean(fileExplorerModalMacro)}
+        onClose={() => setFileExplorerModalMacro(null)}
+        macro={fileExplorerModalMacro}
+        isBn={isBn}
+      />
     </div>
   );
 };

@@ -22,6 +22,7 @@ import {
   Activity,
   Maximize2,
   ShieldCheck,
+  Shield,
   MousePointer2,
   Save,
   FolderOpen,
@@ -1399,6 +1400,71 @@ export const LogicIntelligenceView: React.FC<LogicIntelligenceViewProps> = ({
       {/* TAB 4: THE 'HUMANIZER' ANTI-DETECT ALGORITHM */}
       {activeTab === 'humanizer' && (
         <div className="space-y-6">
+          {/* Preset Buttons Bar */}
+          <div className="p-4 rounded-xl bg-dark-200 border border-gray-800 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-center space-x-2">
+              <Shield className="w-5 h-5 text-cyber-yellow animate-pulse" />
+              <div>
+                <h4 className="text-sm font-bold text-white">Anti-Cheat Bypass Presets</h4>
+                <p className="text-[11px] text-gray-400">Select pre-tuned human motor simulation profiles</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 flex-wrap">
+              <button
+                onClick={() =>
+                  setHumanizerConfig((prev) => ({
+                    ...prev,
+                    enableBezier: true,
+                    randomJitterEnabled: true,
+                    curvatureIntensity: 0.25,
+                    clickOffsetRadiusPx: 1.0,
+                    minDelayJitterMs: -2,
+                    maxDelayJitterMs: 6,
+                    easingType: 'naturalHuman',
+                  }))
+                }
+                className="px-3 py-1.5 rounded-lg bg-[#142618] hover:bg-[#1d3d24] text-[#39ff14] border border-[#39ff14]/40 text-xs font-bold transition-all cursor-pointer"
+              >
+                🏆 Legit Tournament
+              </button>
+              <button
+                onClick={() =>
+                  setHumanizerConfig((prev) => ({
+                    ...prev,
+                    enableBezier: true,
+                    randomJitterEnabled: true,
+                    curvatureIntensity: 0.45,
+                    clickOffsetRadiusPx: 2.5,
+                    minDelayJitterMs: -6,
+                    maxDelayJitterMs: 15,
+                    easingType: 'naturalHuman',
+                  }))
+                }
+                className="px-3 py-1.5 rounded-lg bg-[#14232a] hover:bg-[#1b3644] text-[#00e5ff] border border-[#00e5ff]/40 text-xs font-bold transition-all cursor-pointer"
+              >
+                🛡️ Ultra Stealth
+              </button>
+              <button
+                onClick={() =>
+                  setHumanizerConfig((prev) => ({
+                    ...prev,
+                    enableBezier: true,
+                    randomJitterEnabled: true,
+                    curvatureIntensity: 0.15,
+                    clickOffsetRadiusPx: 0.5,
+                    minDelayJitterMs: -1,
+                    maxDelayJitterMs: 3,
+                    easingType: 'easeOutQuad',
+                  }))
+                }
+                className="px-3 py-1.5 rounded-lg bg-[#271720] hover:bg-[#3d1e2f] text-[#ff0055] border border-[#ff0055]/40 text-xs font-bold transition-all cursor-pointer"
+              >
+                🎯 Aggressive Precision
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Interactive Bézier Trajectory Canvas */}
             <div className="lg:col-span-2 space-y-4">
@@ -1568,6 +1634,23 @@ export const LogicIntelligenceView: React.FC<LogicIntelligenceViewProps> = ({
                     <option value="easeInOutCubic">Ease-In-Out Cubic</option>
                     <option value="easeOutQuad">Ease-Out Quad</option>
                   </select>
+                </div>
+
+                {/* Gaussian Noise Distribution Visualizer */}
+                <div className="p-3 rounded-lg bg-black/60 border border-gray-800 space-y-1">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-gray-400">
+                    <span>GAUSSIAN NOISE DISTRIBUTION</span>
+                    <span className="text-cyber-green font-bold">N(μ=0, σ=1.2)</span>
+                  </div>
+                  <div className="h-10 flex items-end space-x-1 pt-2">
+                    {[12, 28, 48, 72, 95, 100, 95, 72, 48, 28, 12].map((val, idx) => (
+                      <div
+                        key={idx}
+                        className="flex-1 rounded-t bg-[#39ff14]/70 transition-all duration-300"
+                        style={{ height: `${val}%` }}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

@@ -26,6 +26,10 @@ import {
   X,
   Target,
   Zap,
+  Edit3,
+  Smartphone,
+  Shield,
+  Gauge,
 } from 'lucide-react';
 import { InstalledEmulatorInfo, TelemetryData, PresetProfile, CrosshairConfig } from '../types';
 import { CROSSHAIR_DESIGNS } from '../data/crosshairCatalog';
@@ -48,6 +52,7 @@ interface DashboardViewProps {
   isEngineActive: boolean;
   onUpdateAdbPort: (port: number) => void;
   onDeleteEmulator?: (id: string) => void;
+  onEditEmulator?: (emu: InstalledEmulatorInfo) => void;
   onTogglePinEmulator?: (id: string) => void;
   lang?: Language;
   activePreset?: PresetProfile | null;
@@ -71,6 +76,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   isEngineActive,
   onUpdateAdbPort,
   onDeleteEmulator,
+  onEditEmulator,
   onTogglePinEmulator,
   lang = 'bn',
   activePreset,
@@ -363,7 +369,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Emulator Selection Grid (Pinned Emulators First) */}
         {emulators.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 mt-5">
             {[...emulators]
               .sort((a, b) => {
                 if (a.isPinned && !b.isPinned) return -1;
@@ -372,32 +378,90 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               })
               .map((emu) => {
                 const isSelected = emu.id === selectedEmulatorId;
+                const isRunning = isSelected && telemetry?.isEmulatorRunning;
+
+                // Visual metadata styling based on emulator engine
+                const typeLower = (emu.type || '').toLowerCase();
+                let engineTag = emu.type || 'Custom';
+                let engineColor = '#00e5ff';
+                let EngineIcon = Tv;
+
+                if (typeLower.includes('blue')) {
+                  engineTag = 'BlueStacks 5';
+                  engineColor = '#00e5ff';
+                  EngineIcon = Smartphone;
+                } else if (typeLower.includes('msi')) {
+                  engineTag = 'MSI App Player';
+                  engineColor = '#39ff14';
+                  EngineIcon = Gauge;
+                } else if (typeLower.includes('ld')) {
+                  engineTag = 'LDPlayer 9';
+                  engineColor = '#ffd600';
+                  EngineIcon = Zap;
+                } else if (typeLower.includes('game') || typeLower.includes('loop')) {
+                  engineTag = 'Gameloop Turbo';
+                  engineColor = '#ff2a4b';
+                  EngineIcon = Flame;
+                } else if (typeLower.includes('nox')) {
+                  engineTag = 'NoxPlayer';
+                  engineColor = '#d500f9';
+                  EngineIcon = Layers;
+                } else if (typeLower.includes('mumu') || typeLower.includes('memu')) {
+                  engineTag = 'MuMu Player';
+                  engineColor = '#ff9100';
+                  EngineIcon = Cpu;
+                }
+
                 return (
                   <div
                     key={emu.id}
                     id={`emu-card-${emu.id}`}
                     onClick={() => onSelectEmulator(emu.id)}
-                    className={`group p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between relative ${
+                    className={`group rounded-2xl border-2 transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden p-4 select-none ${
                       isSelected
-                        ? 'bg-[#182618] border-[#39ff14] shadow-[0_0_12px_rgba(57,255,20,0.2)]'
-                        : 'bg-[#181822] border-[#252733] hover:border-[#39ff14]/50 text-[#8892b0]'
+                        ? 'bg-gradient-to-b from-[#142318] via-[#101b13] to-[#0c140e] border-[#39ff14] shadow-[0_0_20px_rgba(57,255,20,0.25)] scale-[1.02]'
+                        : 'bg-gradient-to-b from-[#161824] to-[#10121a] border-[#222638] hover:border-[#00e5ff]/50 hover:bg-[#191c2b] shadow-md'
                     }`}
                   >
+                    {/* Top Ambient Glow / Tech Scan Line */}
+                    <div
+                      className={`absolute top-0 left-0 right-0 h-[2px] transition-all ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-transparent via-[#39ff14] to-transparent'
+                          : 'bg-gradient-to-r from-transparent via-[#00e5ff]/30 to-transparent group-hover:via-[#00e5ff]'
+                      }`}
+                    />
+
+                    {/* Card Top: Brand Badge, Pinned Tag, Action Toolbar */}
                     <div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-1.5">
-                          <span className="text-[10px] uppercase font-bold text-[#64748b]">
-                            {emu.type}
+                      <div className="flex items-center justify-between gap-1 mb-2.5">
+                        {/* Engine Badge */}
+                        <div className="flex items-center space-x-1.5 min-w-0">
+                          <div
+                            className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border"
+                            style={{
+                              backgroundColor: `${engineColor}15`,
+                              borderColor: `${engineColor}40`,
+                              color: engineColor,
+                            }}
+                          >
+                            <EngineIcon className="w-3.5 h-3.5" />
+                          </div>
+                          <span
+                            className="text-[10px] uppercase font-black tracking-wider truncate"
+                            style={{ color: isSelected ? '#39ff14' : engineColor }}
+                          >
+                            {engineTag}
                           </span>
                           {emu.isPinned && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#eab308]/20 text-[#eab308] border border-[#eab308]/40 flex items-center gap-0.5">
+                            <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-[#eab308]/20 text-[#eab308] border border-[#eab308]/40 flex items-center gap-0.5 shrink-0">
                               <Pin className="w-2.5 h-2.5 fill-current" />
-                              <span>PINNED</span>
                             </span>
                           )}
                         </div>
 
-                        <div className="flex items-center space-x-1">
+                        {/* Top Right Action Toolbar (Pin, Edit, Delete, Live Dot) */}
+                        <div className="flex items-center space-x-1 shrink-0">
                           {/* Pin / Unpin Button */}
                           {onTogglePinEmulator && (
                             <button
@@ -406,17 +470,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 e.stopPropagation();
                                 onTogglePinEmulator(emu.id);
                               }}
-                              className={`p-1 rounded transition-colors cursor-pointer ${
+                              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                                 emu.isPinned
                                   ? 'bg-[#eab308]/20 text-[#eab308] hover:bg-[#eab308]/30 shadow-[0_0_8px_rgba(234,179,8,0.3)]'
-                                  : 'text-[#64748b] hover:text-[#eab308] hover:bg-black/30'
+                                  : 'text-[#64748b] hover:text-[#eab308] hover:bg-[#202230]'
                               }`}
-                              title={emu.isPinned ? 'Unpin Emulator' : 'Pin Emulator to Top'}
+                              title={emu.isPinned ? (isBn ? 'আনপিন করুন' : 'Unpin Emulator') : (isBn ? 'উপরে পিন করুন' : 'Pin to Top')}
                             >
                               <Pin className={`w-3 h-3 ${emu.isPinned ? 'fill-current' : ''}`} />
                             </button>
                           )}
 
+                          {/* Edit Emulator Configuration Button */}
+                          {onEditEmulator && (
+                            <button
+                              id={`btn-edit-emu-${emu.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditEmulator(emu);
+                              }}
+                              className="p-1.5 rounded-lg text-[#64748b] hover:text-[#00e5ff] hover:bg-[#00e5ff]/15 transition-all cursor-pointer border border-transparent hover:border-[#00e5ff]/30"
+                              title={isBn ? 'ইমুলেটর কনফিগারেশন এডিট করুন' : 'Edit Emulator Parameters'}
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
+                          )}
+
+                          {/* Delete Emulator Button */}
                           {onDeleteEmulator && (
                             <button
                               id={`btn-del-emu-${emu.id}`}
@@ -424,27 +504,69 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 e.stopPropagation();
                                 onDeleteEmulator(emu.id);
                               }}
-                              className="p-1 rounded text-[#64748b] hover:text-[#ff4444] hover:bg-black/30 transition-colors cursor-pointer"
-                              title={`Delete emulator ${emu.name}`}
+                              className="p-1.5 rounded-lg text-[#64748b] hover:text-[#ff4444] hover:bg-[#ff4444]/15 transition-all cursor-pointer border border-transparent hover:border-[#ff4444]/30"
+                              title={isBn ? 'ইমুলেটর মুছে ফেলুন' : `Delete emulator ${emu.name}`}
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
                           )}
 
-                          <span
-                            className={`w-2 h-2 rounded-full ${
-                              isSelected && isRunning ? 'bg-[#39ff14] shadow-[0_0_6px_#39ff14]' : 'bg-[#475569]'
-                            }`}
-                          ></span>
+                          {/* Status LED */}
+                          <div className="pl-1">
+                            <span
+                              className={`block w-2.5 h-2.5 rounded-full transition-all ${
+                                isRunning
+                                  ? 'bg-[#39ff14] shadow-[0_0_8px_#39ff14] animate-pulse'
+                                  : isSelected
+                                  ? 'bg-[#00e5ff] shadow-[0_0_6px_#00e5ff]'
+                                  : 'bg-[#3b4252]'
+                              }`}
+                              title={isRunning ? 'Process Active & Running' : isSelected ? 'Selected Target' : 'Standby'}
+                            />
+                          </div>
                         </div>
                       </div>
-                      <div className="text-sm font-bold text-white mt-1 truncate">{emu.name}</div>
-                      <div className="text-[11px] font-mono text-[#00e5ff] mt-0.5">Port: {emu.adbPort}</div>
+
+                      {/* Emulator Display Name */}
+                      <div className="text-sm font-extrabold text-white group-hover:text-[#39ff14] transition-colors truncate mt-0.5">
+                        {emu.name}
+                      </div>
+
+                      {/* Parameters Chips (Port & Arch) */}
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                        <div className="px-2 py-0.5 rounded-md bg-[#00e5ff]/10 border border-[#00e5ff]/30 text-[#00e5ff] font-mono font-bold text-[10px] flex items-center gap-1">
+                          <Radio className="w-2.5 h-2.5" />
+                          <span>Port: {emu.adbPort}</span>
+                        </div>
+                        <div className="px-2 py-0.5 rounded-md bg-[#1f2333] border border-[#2b3147] text-[#8892b0] text-[10px] font-semibold truncate max-w-[120px]">
+                          {emu.version || '64-Bit x86_64'}
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="mt-3 pt-2 border-t border-[#252733] flex items-center justify-between text-[10px]">
-                      <span className="text-[#64748b]">{emu.version || 'Custom / Dynamic'}</span>
-                      {isSelected && <span className="text-[#39ff14] font-bold">ACTIVE</span>}
+                    {/* Card Footer: Status Pill & Active Tag */}
+                    <div className="mt-3.5 pt-2.5 border-t border-[#1e2333] flex items-center justify-between text-[10px]">
+                      <div className="flex items-center space-x-1.5">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            isRunning ? 'bg-[#39ff14]' : isSelected ? 'bg-[#00e5ff]' : 'bg-[#64748b]'
+                          }`}
+                        />
+                        <span className="text-[#8892b0] font-mono">
+                          {isRunning ? (isBn ? 'লাইভ চলমান' : 'RUNNING') : isSelected ? (isBn ? 'হুক রেডি' : 'TARGET READY') : (isBn ? 'স্ট্যান্ডবাই' : 'STANDBY')}
+                        </span>
+                      </div>
+
+                      {isSelected ? (
+                        <span className="text-[10px] font-black text-[#39ff14] flex items-center gap-1 bg-[#39ff14]/15 px-2 py-0.5 rounded-md border border-[#39ff14]/40 shadow-[0_0_8px_rgba(57,255,20,0.3)]">
+                          <Check className="w-3 h-3 stroke-[3]" />
+                          <span>ACTIVE</span>
+                        </span>
+                      ) : (
+                        <span className="text-[#64748b] group-hover:text-[#00e5ff] transition-colors font-bold text-[9px] uppercase">
+                          {isBn ? 'সিলেক্ট করুন' : 'SELECT'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -620,37 +742,150 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
               </div>
 
-              {/* Status & Hook Details Strip (7 cols) */}
-              <div className="lg:col-span-7 bg-[#0b0c14] p-4 rounded-2xl border border-[#222436] flex flex-col justify-between space-y-3">
+              {/* Emulator Crosshair Injection & Controls Strip (7 cols) */}
+              <div className="lg:col-span-7 bg-[#0b0c14] p-4 rounded-2xl border border-[#222436] flex flex-col justify-between space-y-3.5 shadow-inner">
+                {/* Header & Status Indicator */}
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <span className="text-xs font-bold text-[#8892b0] uppercase tracking-wider">
-                    {isBn ? 'ইমুলেটর ভিউপোর্ট ও সেন্টারিং স্ট্যাটাস' : 'EMULATOR VIEWPORT & CENTERING:'}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <Zap className="w-4 h-4 text-[#39ff14]" />
+                    <span className="text-xs font-black text-white uppercase tracking-wider">
+                      {isBn ? 'ইমুলেটর ক্রসহায়ার ইনজেকশন কন্ট্রোল' : 'EMULATOR CROSSHAIR INJECTION CONTROLS'}
+                    </span>
+                  </div>
 
                   <div className="flex items-center space-x-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#39ff14] shadow-[0_0_10px_#39ff14] animate-pulse"></span>
-                    <span className="text-xs font-black font-mono text-[#39ff14]">
-                      {isBn ? 'সেন্টার-লকড ও একটিভ' : 'CENTER LOCKED & SYNCED'}
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full ${
+                        crosshairConfig.isActivatedToEmulator
+                          ? 'bg-[#39ff14] shadow-[0_0_10px_#39ff14] animate-pulse'
+                          : 'bg-[#475569]'
+                      }`}
+                    />
+                    <span
+                      className={`text-xs font-black font-mono ${
+                        crosshairConfig.isActivatedToEmulator ? 'text-[#39ff14]' : 'text-[#8892b0]'
+                      }`}
+                    >
+                      {crosshairConfig.isActivatedToEmulator
+                        ? (isBn ? 'ইনজেক্টেড ও স্ক্রিনে সক্রিয়' : 'INJECTED & ON-SCREEN')
+                        : (isBn ? 'স্ট্যান্ডবাই / অফ-স্ক্রিন' : 'STANDBY / OFF-SCREEN')}
                     </span>
                   </div>
                 </div>
 
-                <p className="text-xs text-[#94a3b8] leading-relaxed">
-                  {isBn
-                    ? '✅ ক্রসহায়ার স্টুডিও থেকে এটি সক্রিয় রাখা হয়েছে। ইমুলেটর চালু হওয়ার সাথে সাথে স্ক্রিনের ঠিক মাঝখানে এই ক্রসহায়ার প্রদর্শিত হবে।'
-                    : '✅ Crosshair is enabled from Studio. It automatically positions at the exact center viewport.'}
-                </p>
+                {/* Control Action Buttons Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* Button 1: Auto-Inject on Emulator Launch Toggle */}
+                  <button
+                    id="btn-toggle-crosshair-autoinject"
+                    type="button"
+                    onClick={() => {
+                      if (onUpdateCrosshairConfig) {
+                        const nextAuto = crosshairConfig.autoInjectToEmulator === false ? true : false;
+                        onUpdateCrosshairConfig({
+                          ...crosshairConfig,
+                          autoInjectToEmulator: nextAuto,
+                        });
+                      }
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                      crosshairConfig.autoInjectToEmulator !== false
+                        ? 'bg-[#142617] border-[#39ff14]/80 shadow-[0_0_12px_rgba(57,255,20,0.2)] text-white'
+                        : 'bg-[#141520] border-[#2d3044] text-[#8892b0] hover:border-[#64748b]'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-black flex items-center gap-1.5 truncate">
+                        <Power className={`w-3.5 h-3.5 ${crosshairConfig.autoInjectToEmulator !== false ? 'text-[#39ff14]' : 'text-[#64748b]'}`} />
+                        <span>{isBn ? 'অটো-ইনজেক্ট ইমুলেটর' : 'Auto Inject on Launch'}</span>
+                      </div>
+                      <div className="text-[9px] text-[#8892b0] truncate mt-0.5">
+                        {crosshairConfig.autoInjectToEmulator !== false
+                          ? (isBn ? 'ইমুলেটর চালুর সাথে সাথে সক্রিয় হবে' : 'Automatically hooks when emulator starts')
+                          : (isBn ? 'অটো ইনজেক্ট বন্ধ রাখা হয়েছে' : 'Auto-injection disabled')}
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[9px] font-mono font-black px-2 py-0.5 rounded border shrink-0 ${
+                        crosshairConfig.autoInjectToEmulator !== false
+                          ? 'bg-[#39ff14]/20 text-[#39ff14] border-[#39ff14]/50'
+                          : 'bg-black/40 text-[#64748b] border-[#334155]'
+                      }`}
+                    >
+                      {crosshairConfig.autoInjectToEmulator !== false ? 'ON' : 'OFF'}
+                    </span>
+                  </button>
 
-                <div className="pt-1 flex flex-wrap items-center justify-between gap-2 border-t border-[#1c1d2c] text-xs">
-                  <span className="text-[#64748b] font-mono">
-                    Mode: <strong className="text-[#00e5ff]">Bypass Overlay Layer</strong>
-                  </span>
+                  {/* Button 2: Instant Execute / Force Inject Now */}
+                  <button
+                    id="btn-force-inject-crosshair"
+                    type="button"
+                    onClick={() => {
+                      if (onUpdateCrosshairConfig) {
+                        onUpdateCrosshairConfig({
+                          ...crosshairConfig,
+                          isActivatedToEmulator: true,
+                        });
+                      }
+                    }}
+                    className="p-2.5 rounded-xl bg-[#182333] hover:bg-[#1f3047] border border-[#00e5ff]/60 text-white shadow-[0_0_12px_rgba(0,229,255,0.18)] transition-all cursor-pointer flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-black text-[#00e5ff] flex items-center gap-1.5 truncate">
+                        <Zap className="w-3.5 h-3.5 text-[#00e5ff]" />
+                        <span>{isBn ? 'ইনস্ট্যান্ট ইনজেক্ট / এক্সিকিউট' : 'Instant Execute / Hook'}</span>
+                      </div>
+                      <div className="text-[9px] text-[#8892b0] truncate mt-0.5">
+                        {isBn ? 'এখনই ইমুলেটর স্ক্রিনে ইনজেক্ট করুন' : 'Force inject crosshair now'}
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#00e5ff]/20 text-[#00e5ff] border border-[#00e5ff]/40 shrink-0">
+                      EXEC
+                    </span>
+                  </button>
+                </div>
+
+                {/* Sub Action Strip: Hotkey Toggle & Browse All 110+ Designs */}
+                <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#1c1d2c] text-xs">
+                  {/* Screen Overlay Visibility Button (Hotkey Trigger) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onUpdateCrosshairConfig) {
+                        onUpdateCrosshairConfig({
+                          ...crosshairConfig,
+                          isActivatedToEmulator: !crosshairConfig.isActivatedToEmulator,
+                        });
+                      }
+                    }}
+                    className={`h-7 px-2.5 rounded-lg border text-[10px] font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                      crosshairConfig.isActivatedToEmulator
+                        ? 'bg-[#182618] border-[#39ff14]/50 text-[#39ff14] hover:bg-[#203620]'
+                        : 'bg-[#181822] border-[#282b3d] text-[#8892b0] hover:text-white'
+                    }`}
+                    title="Toggle crosshair overlay on/off screen"
+                  >
+                    <Crosshair className="w-3 h-3" />
+                    <span>
+                      {crosshairConfig.isActivatedToEmulator
+                        ? (isBn ? 'স্ক্রিন ভিজিবিলিটি: দৃশ্যমান (ON)' : 'Reticle: Visible')
+                        : (isBn ? 'স্ক্রিন ভিজিবিলিটি: লুকানো (OFF)' : 'Reticle: Hidden')}
+                    </span>
+                    <span className="ml-1 px-1.5 py-0.2 rounded bg-black/50 text-[9px] font-mono text-white border border-white/20">
+                      {crosshairConfig.toggleHotkey || 'INSERT'}
+                    </span>
+                  </button>
+
+                  {/* Browse All 110+ Designs Button */}
                   {onOpenCrosshairStudio && (
                     <button
+                      id="btn-browse-all-crosshairs"
+                      type="button"
                       onClick={onOpenCrosshairStudio}
-                      className="text-[11px] font-bold text-[#39ff14] hover:underline flex items-center space-x-1 cursor-pointer"
+                      className="h-7 px-3 rounded-lg bg-[#201c2e] hover:bg-[#2e2645] border border-[#d500f9]/60 text-[#d500f9] hover:text-white text-[10px] font-black flex items-center space-x-1.5 transition-all cursor-pointer shadow-[0_0_8px_rgba(213,0,249,0.2)]"
                     >
-                      <span>{isBn ? 'সম্পূর্ণ ৩২+ ডিজাইন ব্রাউজ করুন ➔' : 'Explore 32+ Styles ➔'}</span>
+                      <Sparkles className="w-3 h-3 text-[#d500f9]" />
+                      <span>{isBn ? 'সম্পূর্ণ ১১০+ ডিজাইন ব্রাউজ করুন ➔' : 'Explore All 110+ Reticles ➔'}</span>
                     </button>
                   )}
                 </div>

@@ -105,11 +105,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({
     selectCoresForPriority(p);
   };
 
-  const selectPerformanceCores = () => {
-    // Select upper 4 cores (Cores 4, 5, 6, 7) -> 11110000 = 240
-    setAffinityMask(240);
-  };
-
   const selectAllCores = () => {
     setAffinityMask(255);
   };
@@ -240,13 +235,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
-            <button
-              id="btn-affinity-perf-cores"
-              onClick={selectPerformanceCores}
-              className="h-8 px-3 rounded-lg bg-[#182430] hover:bg-[#203040] text-[#00e5ff] border border-[#00e5ff]/50 text-xs font-bold transition-all cursor-pointer"
-            >
-              🚀 All Performance Cores (4-7)
-            </button>
             <button
               id="btn-affinity-all-cores"
               onClick={selectAllCores}

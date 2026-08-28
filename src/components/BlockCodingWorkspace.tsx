@@ -67,12 +67,7 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
   onExportToLibrary,
 }) => {
   // Local fallback state when used standalone
-  const [internalBlocks, setInternalBlocks] = useState<BlockNode[]>(() => {
-    return [
-      createBlockInstance('event_on_hotkey', { position: { x: 80, y: 80 }, HOTKEY: 'F8' }),
-      createBlockInstance('mouse_bezier_aim', { position: { x: 80, y: 190 }, DELTA_X: 0, DELTA_Y: 8 }),
-    ];
-  });
+  const [internalBlocks, setInternalBlocks] = useState<BlockNode[]>([]);
   const [internalVars, setInternalVars] = useState<MacroVariable[]>([]);
   const [internalCustomBlocks, setInternalCustomBlocks] = useState<CustomBlockDefinition[]>([]);
 
@@ -644,25 +639,6 @@ export const BlockCodingWorkspace: React.FC<BlockCodingWorkspaceProps> = ({
               onChange={handleImportFile}
             />
           </div>
-
-          {/* Primary Run / Stop Macro Button */}
-          {isRunning ? (
-            <button
-              onClick={handleStop}
-              className="h-7 px-3 rounded-lg bg-[#ff0055] hover:bg-[#d60047] text-white font-black text-xs flex items-center space-x-1 cursor-pointer shadow-[0_0_12px_rgba(255,0,85,0.4)] transition-all ml-1.5"
-            >
-              <Square className="w-3 h-3 fill-current" />
-              <span>Stop</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleRun}
-              className="h-7 px-3 rounded-lg bg-[#39ff14] hover:bg-[#32e012] text-black font-black text-xs flex items-center space-x-1 cursor-pointer shadow-[0_0_12px_rgba(57,255,20,0.4)] transition-all ml-1.5 hover:scale-105"
-            >
-              <Play className="w-3 h-3 fill-current" />
-              <span>Run</span>
-            </button>
-          )}
         </div>
       </div>
 

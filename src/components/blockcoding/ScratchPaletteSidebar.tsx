@@ -24,6 +24,8 @@ import {
   ArrowRight,
   ArrowUp,
   Plus,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { BLOCK_CATALOG, BlockPrototype, createBlockInstance, SCRATCH_CATEGORIES } from '../../data/blockCatalog';
 import { BlockCategory, BlockNode, CustomBlockDefinition, MacroVariable } from '../../types';
@@ -49,6 +51,7 @@ export const ScratchPaletteSidebar: React.FC<ScratchPaletteSidebarProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<BlockCategory | 'all'>('motion');
   const [isDragOverTrash, setIsDragOverTrash] = useState<boolean>(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(true);
 
   // Filtered block list
   const filteredBlocks = React.useMemo(() => {
@@ -174,13 +177,25 @@ export const ScratchPaletteSidebar: React.FC<ScratchPaletteSidebarProps> = ({
       }`}
     >
       {/* 1. LEFT ICON CATEGORY RAIL (Authentic Scratch 3.0 Icon Column) */}
-      <div className="w-[68px] bg-[#070a10] border-r border-[#141b2d] flex flex-col items-center py-2 space-y-1 flex-shrink-0 overflow-y-auto no-scrollbar">
+      <div className="w-[68px] bg-[#070a10] border-r border-[#141b2d] flex flex-col items-center py-2 space-y-1 flex-shrink-0 overflow-y-auto no-scrollbar relative">
+        {/* Toggle Expand/Collapse Drawer Button on Top of Rail */}
+        <button
+          onClick={() => setIsDrawerOpen((prev) => !prev)}
+          className="w-10 h-6 mb-1 rounded-lg bg-[#141926] hover:bg-[#1f283e] text-[#00e5ff] border border-[#00e5ff]/30 flex items-center justify-center cursor-pointer transition-all shadow-sm"
+          title={isDrawerOpen ? 'Collapse Palette Drawer' : 'Expand Palette Drawer'}
+        >
+          {isDrawerOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4 animate-pulse" />}
+        </button>
+
         {SCRATCH_CATEGORIES.map((cat) => {
           const isActive = activeCategory === cat.id;
           return (
             <button
               key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
+              onClick={() => {
+                setActiveCategory(cat.id);
+                setIsDrawerOpen(true);
+              }}
               className={`w-[60px] py-1.5 px-1 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer group ${
                 isActive
                   ? 'bg-[#151c2e] ring-1 scale-105 shadow-md'
@@ -208,12 +223,18 @@ export const ScratchPaletteSidebar: React.FC<ScratchPaletteSidebarProps> = ({
       </div>
 
       {/* 2. RIGHT BLOCK PALETTE */}
-      <div className="w-[240px] flex flex-col bg-[#0b0f19]">
+      <div
+        className={`flex flex-col bg-[#0b0f19] transition-all duration-300 ease-in-out ${
+          isDrawerOpen
+            ? 'w-[240px] opacity-100 border-r border-[#39ff14]/30 shadow-[0_0_20px_rgba(57,255,20,0.15)]'
+            : 'w-0 opacity-0 overflow-hidden border-none pointer-events-none'
+        }`}
+      >
         {/* Search & Header */}
         <div className="p-2 border-b border-[#182136] bg-[#0d1322] space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-white uppercase tracking-wider">
-              {activeCategory === 'all' ? 'All Blocks' : activeCategory}
+            <span className="text-[11px] font-black text-white uppercase tracking-wider flex items-center gap-1">
+              <span>{activeCategory === 'all' ? 'All Blocks' : activeCategory}</span>
             </span>
             <div className="flex items-center space-x-1">
               {onOpenCreateVariable && (
@@ -229,6 +250,13 @@ export const ScratchPaletteSidebar: React.FC<ScratchPaletteSidebarProps> = ({
                 className="px-1.5 py-0.5 rounded bg-[#FF6680]/20 hover:bg-[#FF6680]/30 border border-[#FF6680]/40 text-[#FF6680] text-[8px] font-black cursor-pointer uppercase"
               >
                 + Block
+              </button>
+              <button
+                onClick={() => setIsDrawerOpen(false)}
+                className="p-1 rounded bg-[#161a29] hover:bg-[#252c45] text-[#8892b0] hover:text-[#39ff14] cursor-pointer"
+                title="Collapse Drawer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -247,7 +275,7 @@ export const ScratchPaletteSidebar: React.FC<ScratchPaletteSidebarProps> = ({
 
         {/* Scrollable Blocks List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-2 no-scrollbar bg-[#080b12]">
-          {filteredBlocks.map((proto) => {
+          {filteredBlocks.map((proto, idx) => {
             const theme = SCRATCH_THEMES[proto.category] || { bg: proto.color || '#4C97FF', border: '#3373CC' };
             const shape = proto.shape || (proto.category === 'events' ? 'hat' : proto.hasContainerSlot ? 'c_block' : 'command');
             const isReporter = shape === 'reporter';
@@ -257,7 +285,7 @@ export const ScratchPaletteSidebar: React.FC<ScratchPaletteSidebarProps> = ({
 
             return (
               <div
-                key={`${proto.category}_${proto.type}_${proto.title}`}
+                key={`${proto.category}_${proto.type}_${proto.title}_${idx}`}
                 draggable
                 onDragStart={(e) => handleDragStart(e, proto)}
                 onClick={() => {

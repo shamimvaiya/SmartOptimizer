@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Crosshair,
   Sparkles,
@@ -21,6 +21,9 @@ import {
   Power,
   Flame,
   MousePointer2,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { CrosshairConfig, CrosshairDesign } from '../types';
 import { CROSSHAIR_DESIGNS } from '../data/crosshairCatalog';
@@ -50,6 +53,22 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
   const [shotCount, setShotCount] = useState<number>(0);
   const [showSaveToast, setShowSaveToast] = useState<boolean>(false);
 
+  // Horizontal scroll ref for Category filter tabs
+  const categoriesScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = categoriesScrollRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
   // Active Selected Design
   const activeDesign = useMemo(() => {
     return (
@@ -60,14 +79,14 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
 
   // Categories list
   const categories = [
-    { id: 'all', label: isBn ? 'সবগুলো (৩২টি)' : 'All Designs (32)' },
-    { id: 'esport', label: isBn ? '🏆 প্রো স্পোর্টস' : '🏆 Pro Esports' },
-    { id: 'dot', label: isBn ? '🎯 প্রিসিশন ডট' : '🎯 Precision Dot' },
-    { id: 'circle', label: isBn ? '⭕ সার্কেল ও রিং' : '⭕ Rings & Circles' },
-    { id: 'scifi', label: isBn ? '⚡ সাই-ফাই ও সাইবার' : '⚡ Sci-Fi & Cyber' },
-    { id: 'sniper', label: isBn ? '🔭 স্নাইপার ও অপটিক্স' : '🔭 Sniper Optics' },
-    { id: 'minimal', label: isBn ? '✨ মিনিমালিস্ট' : '✨ Minimal' },
-    { id: 'special', label: isBn ? '🔥 স্পেশাল রেইজ' : '🔥 Special Rage' },
+    { id: 'all', label: isBn ? '🌟 সবগুলো (১১০+ ডিজাইন)' : '🌟 All Designs (110+)' },
+    { id: 'morph', label: isBn ? '🌀 মরফিং ও শেপ-শিফট' : '🌀 Morphing Loops' },
+    { id: 'cyber_scifi', label: isBn ? '⚡ সাইবারপাঙ্ক ও কোয়ান্টাম' : '⚡ Cyber & Quantum' },
+    { id: 'anime_mystic', label: isBn ? '🔮 ম্যাজিক্যাল ও জুটসু' : '🔮 Magic Runes & Jutsu' },
+    { id: 'orbit_vortex', label: isBn ? '🌪️ ঘূর্ণন ও অরবিটাল' : '🌪️ Vortex & Orbitals' },
+    { id: 'tactical_hud', label: isBn ? '🎯 ট্যাকটিক্যাল HUD' : '🎯 Tactical Combat HUD' },
+    { id: 'plasma_neon', label: isBn ? '🔥 প্লাজমা ও রিঅ্যাক্টর' : '🔥 Plasma & Energy' },
+    { id: 'pro_static', label: isBn ? '🏆 ক্লিন প্রো এসপোর্টস' : '🏆 Clean Pro Esports' },
   ];
 
   // Filtered designs
@@ -167,6 +186,43 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
     setTimeout(() => setShowSaveToast(false), 3000);
   };
 
+  // Toggle or Add Crosshair to Dashboard Fast-Switch Queue
+  const handleToggleDashboardQueue = (design: CrosshairDesign, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentFavs =
+      crosshairConfig.favoriteDesignIds && crosshairConfig.favoriteDesignIds.length > 0
+        ? crosshairConfig.favoriteDesignIds
+        : [
+            'morph_geo_shifter',
+            'morph_tactical_cycle',
+            'sharingan_3tomoe_spin',
+            'fire_dragon_vortex',
+            'cyber_pulsar_ring',
+            'sniper_predator_lock',
+            'cs2_s1mple_pro_cross',
+          ];
+
+    const exists = currentFavs.includes(design.id);
+    let updatedFavs: string[];
+
+    if (exists) {
+      updatedFavs = currentFavs.filter((id) => id !== design.id);
+      onLog?.(`[Crosshair Studio] Removed '${design.name}' from Dashboard Queue.`);
+    } else {
+      updatedFavs = [...currentFavs, design.id];
+      setShowSaveToast(true);
+      setTimeout(() => setShowSaveToast(false), 2500);
+      onLog?.(`[Crosshair Studio] Added '${design.name}' to Dashboard Fast-Switch Queue.`);
+      playBeep(960, 0.08);
+    }
+
+    const updated: CrosshairConfig = {
+      ...crosshairConfig,
+      favoriteDesignIds: updatedFavs,
+    };
+    onUpdateConfig(updated);
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Toast Notification */}
@@ -203,8 +259,8 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
             </div>
             <p className="text-xs sm:text-sm text-[#8892b0] mt-1 max-w-2xl">
               {isBn
-                ? 'ইমুলেটর এবং গেমের জন্য কাস্টম নিয়ন ক্রসহায়ার ডিজাইন করুন। ৩২+ ইউনিক স্টাইল থেকে যেকোনোটি বেছে নিন, লাইভ প্রিভিউ করুন এবং এক ক্লিকেই ড্যাশবোর্ড ও ইমুলেটরে চালু করুন।'
-                : 'Engineered for competitive Android FPS gamers. Real-time vector rendering, custom geometries, zero input lag, and automatic in-game emulator overlay hook.'}
+                ? 'ইমুলেটর এবং গেমের জন্য কাস্টম নিয়ন ক্রসহায়ার ডিজাইন করুন। ১১০+ ইউনিক অ্যানিমেটেড, মরফিং ট্রানজিশন ও স্ট্যাটিক ডিজাইন থেকে যেকোনোটি বেছে নিন, লাইভ প্রিভিউ করুন এবং এক ক্লিকেই ড্যাশবোর্ড ও ইমুলেটরে চালু করুন।'
+                : 'Engineered for competitive FPS gamers. 110+ animated vector geometries, continuous morphing loops, and tournament-grade static reticles with zero input lag.'}
             </p>
           </div>
         </div>
@@ -637,12 +693,12 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
           <div>
             <h2 className="text-lg font-black text-white flex items-center gap-2">
               <Layers className="w-5 h-5 text-[#39ff14]" />
-              <span>{isBn ? 'ক্রসহায়ার ডিজাইন ক্যাটালগ (৩২+ ইউনিক ডিজাইন)' : 'CROSSHAIR DESIGN CATALOG (32+ STYLES)'}</span>
+              <span>{isBn ? 'ক্রসহায়ার ডিজাইন ক্যাটালগ (১১০+ প্রিমিয়াম ডিজাইন)' : 'CROSSHAIR DESIGN CATALOG (110+ STYLES)'}</span>
             </h2>
             <p className="text-xs text-[#8892b0] mt-0.5">
               {isBn
-                ? 'যেকোনো কার্ডের ওপর ক্লিক করলে সেটি লাইভ প্রিভিউতে ওপেন হবে এবং সিলেক্ট হবে।'
-                : 'Click any card to load, preview, customize, and add to your active dashboard.'}
+                ? 'কার্ডের ভেতরেই অ্যানিমেশন ও মরফিং লাইভ চলমান। যেকোনো কার্ডে ক্লিক করে লাইভ প্রিভিউ ও কাস্টমাইজ করুন।'
+                : 'Live moving previews on every card. Click any card to customize, preview, and apply to your active emulator.'}
             </p>
           </div>
 
@@ -653,33 +709,41 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={isBn ? 'ক্রসহায়ার সার্চ করুন...' : 'Search crosshairs (e.g. Dot, CS2, Valorant)...'}
+              placeholder={isBn ? 'ক্রসহায়ার সার্চ করুন (যেমন: Morph, Sharingan, Dragon, CS2)...' : 'Search crosshairs (e.g. Morph, Sharingan, Dragon, CS2)...'}
               className="w-full h-10 pl-9 pr-3 rounded-xl bg-[#181926] text-white border border-[#2b2d3d] text-xs outline-none focus:border-[#39ff14]"
             />
           </div>
         </div>
 
-        {/* Category Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto py-4 scrollbar-thin">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer border ${
-                selectedCategory === cat.id
-                  ? 'bg-[#39ff14] text-black border-[#39ff14] shadow-[0_0_12px_rgba(57,255,20,0.4)]'
-                  : 'bg-[#161724] text-[#8892b0] border-[#252738] hover:border-[#39ff14]/40 hover:text-white'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+        {/* Category Filter Tabs (Scrollable on wheel without ugly scrollbar) */}
+        <div className="relative flex items-center my-3">
+          <div
+            ref={categoriesScrollRef}
+            className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none no-scrollbar scroll-smooth w-full select-none"
+          >
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer border shrink-0 ${
+                  selectedCategory === cat.id
+                    ? 'bg-[#39ff14] text-black border-[#39ff14] shadow-[0_0_12px_rgba(57,255,20,0.4)] scale-105'
+                    : 'bg-[#161724] text-[#8892b0] border-[#252738] hover:border-[#39ff14]/40 hover:text-white'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Card Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
           {filteredDesigns.map((design) => {
             const isSelected = crosshairConfig.selectedDesignId === design.id;
+            const isMorph = design.category === 'morph';
+            const isStatic = design.category === 'pro_static';
+
             return (
               <div
                 key={design.id}
@@ -693,7 +757,7 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
               >
                 {/* Active selection ribbon */}
                 {isSelected && (
-                  <div className="absolute top-0 right-0 bg-[#39ff14] text-black font-black text-[9px] px-2.5 py-0.5 rounded-bl-lg font-mono uppercase tracking-wider">
+                  <div className="absolute top-0 right-0 bg-[#39ff14] text-black font-black text-[9px] px-2.5 py-0.5 rounded-bl-lg font-mono uppercase tracking-wider z-10">
                     ACTIVE
                   </div>
                 )}
@@ -714,13 +778,32 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
                       customSettings={isSelected ? crosshairConfig.customSettings : undefined}
                       showGlow={true}
                     />
+
+                    {/* Animation indicator pill */}
+                    <div className="absolute top-2 left-2 pointer-events-none">
+                      {isMorph ? (
+                        <span className="text-[9px] font-mono font-black uppercase text-[#00e5ff] px-1.5 py-0.5 rounded bg-[#00e5ff]/20 border border-[#00e5ff]/40 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] animate-ping" />
+                          MORPH
+                        </span>
+                      ) : isStatic ? (
+                        <span className="text-[9px] font-mono font-bold uppercase text-[#94a3b8] px-1.5 py-0.5 rounded bg-[#334155]/30 border border-[#475569]/40">
+                          PRO STATIC
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-mono font-bold uppercase text-[#39ff14] px-1.5 py-0.5 rounded bg-[#39ff14]/15 border border-[#39ff14]/30 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#39ff14] animate-pulse" />
+                          ANIMATED
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Design Info */}
                   <div className="mt-3.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono font-bold uppercase text-[#00e5ff] px-2 py-0.5 rounded bg-[#00e5ff]/10 border border-[#00e5ff]/30">
-                        {design.category}
+                        {design.category.replace('_', ' ')}
                       </span>
                       <span className="text-[10px] font-mono text-[#8892b0]">
                         {design.size}px
@@ -737,29 +820,81 @@ export const CrosshairStudioView: React.FC<CrosshairStudioViewProps> = ({
                 </div>
 
                 {/* Card Action Strip */}
-                <div className="mt-4 pt-3 border-t border-[#1f202b] flex items-center justify-between">
-                  <div className="flex items-center space-x-1.5">
+                <div className="mt-4 pt-3 border-t border-[#1f202b] flex items-center justify-between gap-1.5">
+                  <div className="flex items-center space-x-1.5 min-w-0">
                     <span
-                      className="w-2.5 h-2.5 rounded-full"
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: design.color }}
                     />
-                    <span className="text-[10px] font-mono text-[#64748b]">{design.shapeType}</span>
+                    <span className="text-[10px] font-mono text-[#64748b] truncate max-w-[65px]">{design.shapeType}</span>
                   </div>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectDesign(design);
-                      handleApplyToDashboard();
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-[#39ff14] text-black shadow-[0_0_8px_rgba(57,255,20,0.4)]'
-                        : 'bg-[#1e202f] hover:bg-[#39ff14] text-[#8892b0] hover:text-black'
-                    }`}
-                  >
-                    {isSelected ? (isBn ? '✓ সক্রিয়' : '✓ Active') : (isBn ? 'নির্বাচন করুন' : 'Select')}
-                  </button>
+                  {(() => {
+                    const currentFavs =
+                      crosshairConfig.favoriteDesignIds && crosshairConfig.favoriteDesignIds.length > 0
+                        ? crosshairConfig.favoriteDesignIds
+                        : [
+                            'morph_geo_shifter',
+                            'morph_tactical_cycle',
+                            'sharingan_3tomoe_spin',
+                            'fire_dragon_vortex',
+                            'cyber_pulsar_ring',
+                            'sniper_predator_lock',
+                            'cs2_s1mple_pro_cross',
+                          ];
+                    const isInQueue = currentFavs.includes(design.id);
+
+                    return (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Add to Dashboard / Favorite Queue Button */}
+                        <button
+                          type="button"
+                          id={`btn-add-dashboard-${design.id}`}
+                          onClick={(e) => handleToggleDashboardQueue(design, e)}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                            isInQueue
+                              ? 'bg-[#002b30] text-[#00e5ff] border-[#00e5ff]/50 hover:bg-[#003d45] shadow-[0_0_8px_rgba(0,229,255,0.2)]'
+                              : 'bg-[#181926] text-[#8892b0] border-[#25283a] hover:text-[#00e5ff] hover:border-[#00e5ff]/50 hover:bg-[#1a2233]'
+                          }`}
+                          title={
+                            isInQueue
+                              ? (isBn ? 'ড্যাশবোর্ড কিউতে যুক্ত রয়েছে (মুছতে ক্লিক করুন)' : 'Already in Dashboard Queue (Click to remove)')
+                              : (isBn ? 'ড্যাশবোর্ড কিউতে যোগ করুন' : 'Add to Dashboard Fast-Switch Queue')
+                          }
+                        >
+                          {isInQueue ? (
+                            <>
+                              <Check className="w-2.5 h-2.5 text-[#00e5ff]" />
+                              <span>{isBn ? 'যুক্ত আছে' : 'In Dash'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-2.5 h-2.5" />
+                              <span>{isBn ? 'অ্যাড টু ড্যাশবোর্ড' : '+ Dashboard'}</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Primary Select / Activate Button */}
+                        <button
+                          type="button"
+                          id={`btn-select-crosshair-${design.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectDesign(design);
+                            handleApplyToDashboard();
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#39ff14] text-black shadow-[0_0_8px_rgba(57,255,20,0.4)]'
+                              : 'bg-[#1e202f] hover:bg-[#39ff14] text-[#8892b0] hover:text-black'
+                          }`}
+                        >
+                          {isSelected ? (isBn ? '✓ সক্রিয়' : '✓ Active') : (isBn ? 'নির্বাচন' : 'Select')}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             );

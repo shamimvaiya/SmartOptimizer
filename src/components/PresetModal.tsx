@@ -36,8 +36,8 @@ export const PresetModal: React.FC<PresetModalProps> = ({
       emulator: {
         processName: 'HD-Player.exe',
         executablePath: 'C:\\Program Files\\BlueStacks_nxt\\HD-Player.exe',
-        priorityClass: 'High',
-        affinityMask: 255,
+        priorityClass: 'Normal',
+        affinityMask: 3,
         adbPort: 5555,
         autoLaunch: true,
       },

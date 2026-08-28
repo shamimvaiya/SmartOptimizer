@@ -66,16 +66,7 @@ export const profileService = {
         showFps: true,
         showSystemStats: true,
       },
-      macroGraph: [
-        {
-          id: `node_start_${Date.now()}`,
-          actionType: 'Event (Start)',
-          parameters: 'Trigger: On Hotkey or Auto',
-          positionX: 60,
-          positionY: 100,
-          nextNodes: [],
-        },
-      ],
+      macroGraph: [],
     };
 
     const res = await api.savePreset(newProfile);

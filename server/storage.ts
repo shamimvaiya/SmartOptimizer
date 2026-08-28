@@ -85,6 +85,15 @@ export interface InstalledEmulatorInfo {
   adbPort: number;
 }
 
+export interface EmulatorEnginePreset {
+  id: string;
+  name: string;
+  executablePath: string;
+  adbPort: number;
+  color: string;
+  family: string;
+}
+
 export interface GlobalConfig {
   activePresetName: string;
   enableDarkTheme: boolean;
@@ -100,11 +109,19 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const PRESETS_FILE = path.join(DATA_DIR, 'presets.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const EMULATORS_FILE = path.join(DATA_DIR, 'emulators.json');
+const EMULATOR_ENGINE_PRESETS_FILE = path.join(DATA_DIR, 'emulator_engine_presets.json');
 const CUSTOM_ACTIONS_FILE = path.join(DATA_DIR, 'custom_actions.json');
 const LOGS_FILE = path.join(DATA_DIR, 'logs.json');
 
 // Default initial profiles
 const defaultPresets: Record<string, PresetProfile> = {};
+
+const defaultEmulatorEnginePresets: EmulatorEnginePreset[] = [
+  { id: 'ep_bluestacks', name: 'BlueStacks', executablePath: 'C:\\Program Files\\BlueStacks_nxt\\HD-Player.exe', adbPort: 5555, color: '#00e5ff', family: 'BlueStacks' },
+  { id: 'ep_msi', name: 'MSI App Player', executablePath: 'C:\\Program Files\\BlueStacks_msi5\\HD-Player.exe', adbPort: 5555, color: '#39ff14', family: 'MSIAppPlayer' },
+  { id: 'ep_ldplayer', name: 'LDPlayer', executablePath: 'C:\\LDPlayer\\LDPlayer9\\dnplayer.exe', adbPort: 5555, color: '#ffd600', family: 'LDPlayer' },
+  { id: 'ep_gameloop', name: 'Gameloop', executablePath: 'C:\\Program Files\\TxGameAssistant\\ui\\AndroidEmulator.exe', adbPort: 5555, color: '#ff2a4b', family: 'Gameloop' },
+];
 
 const defaultCustomActions: CustomActionDefinition[] = [
   {
@@ -167,6 +184,7 @@ class StorageEngine {
   private presets: Record<string, PresetProfile> = {};
   private globalConfig: GlobalConfig = { ...defaultGlobalConfig };
   private emulators: InstalledEmulatorInfo[] = [];
+  private emulatorEnginePresets: EmulatorEnginePreset[] = [];
   private customActions: CustomActionDefinition[] = [];
   private logs: string[] = [];
 
@@ -230,6 +248,15 @@ class StorageEngine {
       this.safeWriteJson(EMULATORS_FILE, this.emulators);
     } else {
       this.emulators = loadedEmulators;
+    }
+
+    // 3b. Emulator Engine Presets (Portable & Removable)
+    const loadedEnginePresets = this.safeReadJson<EmulatorEnginePreset[] | null>(EMULATOR_ENGINE_PRESETS_FILE, null);
+    if (loadedEnginePresets === null) {
+      this.emulatorEnginePresets = [...defaultEmulatorEnginePresets];
+      this.safeWriteJson(EMULATOR_ENGINE_PRESETS_FILE, this.emulatorEnginePresets);
+    } else {
+      this.emulatorEnginePresets = loadedEnginePresets;
     }
 
     // 4. Custom Actions
@@ -333,9 +360,41 @@ class StorageEngine {
     return emu;
   }
 
+  public updateEmulator(id: string, partial: Partial<InstalledEmulatorInfo>): InstalledEmulatorInfo | null {
+    const idx = this.emulators.findIndex((e) => e.id === id);
+    if (idx >= 0) {
+      this.emulators[idx] = { ...this.emulators[idx], ...partial };
+      this.safeWriteJson(EMULATORS_FILE, this.emulators);
+      return this.emulators[idx];
+    }
+    return null;
+  }
+
   public deleteEmulator(id: string): boolean {
     this.emulators = this.emulators.filter((e) => e.id !== id);
     this.safeWriteJson(EMULATORS_FILE, this.emulators);
+    return true;
+  }
+
+  // --- Emulator Engine Presets API (Portable & Removable) ---
+  public getEmulatorEnginePresets(): EmulatorEnginePreset[] {
+    return this.emulatorEnginePresets;
+  }
+
+  public saveEmulatorEnginePreset(preset: EmulatorEnginePreset): EmulatorEnginePreset {
+    const idx = this.emulatorEnginePresets.findIndex((p) => p.id === preset.id || p.name.toLowerCase() === preset.name.toLowerCase());
+    if (idx >= 0) {
+      this.emulatorEnginePresets[idx] = preset;
+    } else {
+      this.emulatorEnginePresets.push(preset);
+    }
+    this.safeWriteJson(EMULATOR_ENGINE_PRESETS_FILE, this.emulatorEnginePresets);
+    return preset;
+  }
+
+  public deleteEmulatorEnginePreset(id: string): boolean {
+    this.emulatorEnginePresets = this.emulatorEnginePresets.filter((p) => p.id !== id && p.name !== id);
+    this.safeWriteJson(EMULATOR_ENGINE_PRESETS_FILE, this.emulatorEnginePresets);
     return true;
   }
 

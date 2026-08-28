@@ -271,31 +271,6 @@ export const BLOCK_CATALOG: BlockPrototype[] = [
     description: 'Current direction angle in degrees.',
     parameters: [],
   },
-  {
-    type: 'action_human_click',
-    category: 'motion',
-    title: 'human click',
-    shape: 'command',
-    color: '#4C97FF',
-    icon: 'MousePointer',
-    description: 'Simulates humanized physical mouse click with organic jitter.',
-    parameters: [
-      {
-        id: 'button',
-        name: 'button',
-        type: 'select',
-        label: 'button',
-        defaultValue: 'left',
-        options: [
-          { label: 'left', value: 'left' },
-          { label: 'right', value: 'right' },
-          { label: 'middle', value: 'middle' },
-        ],
-      },
-      { id: 'jitterRadius', name: 'jitterRadius', type: 'number', label: 'jitter (px)', defaultValue: 2, min: 0, max: 20 },
-      { id: 'holdDurationMs', name: 'holdDurationMs', type: 'number', label: 'hold (ms)', defaultValue: 50, min: 10, max: 500 },
-    ],
-  },
 
   // ==========================================
   // 2. LOOKS BLOCKS (Purple #9966FF)

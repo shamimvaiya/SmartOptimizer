@@ -11,7 +11,22 @@ export interface CustomActionDefinition {
 export interface CrosshairDesign {
   id: string;
   name: string;
-  category: 'esport' | 'dot' | 'circle' | 'sniper' | 'scifi' | 'minimal' | 'special';
+  category:
+    | 'morph'
+    | 'cyber_scifi'
+    | 'anime_mystic'
+    | 'orbit_vortex'
+    | 'tactical_hud'
+    | 'plasma_neon'
+    | 'pro_static'
+    | 'esport'
+    | 'dot'
+    | 'circle'
+    | 'sniper'
+    | 'scifi'
+    | 'minimal'
+    | 'special'
+    | string;
   description: string;
   color: string;
   size: number;
@@ -114,6 +129,7 @@ export interface CrosshairCustomSettings {
 export interface CrosshairConfig {
   isEnabled: boolean;
   isActivatedToEmulator: boolean;
+  autoInjectToEmulator?: boolean;
   selectedDesignId: string;
   favoriteDesignIds?: string[];
   customSettings: CrosshairCustomSettings;
@@ -142,6 +158,8 @@ export interface MacroProfileItem {
   author?: string;
   version?: string;
   createdDate?: string;
+  originStudio?: 'code' | 'visual' | 'block';
+  defaultStudio?: 'code' | 'visual' | 'block';
 }
 
 export interface InstalledEmulatorInfo {

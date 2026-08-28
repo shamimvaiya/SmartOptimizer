@@ -184,6 +184,24 @@ async function startServer() {
     res.json({ success: true, emulator: newEmu });
   });
 
+  app.put('/api/emulators/:id', (req, res) => {
+    const id = req.params.id;
+    const { name, executablePath, adbPort, type, version, isPinned } = req.body;
+    const updated = storage.updateEmulator(id, {
+      ...(name !== undefined && { name }),
+      ...(executablePath !== undefined && { executablePath }),
+      ...(adbPort !== undefined && { adbPort: Number(adbPort) || 5555 }),
+      ...(type !== undefined && { type }),
+      ...(version !== undefined && { version }),
+      ...(isPinned !== undefined && { isPinned }),
+    });
+    if (!updated) {
+      return res.status(404).json({ error: 'Emulator instance not found' });
+    }
+    storage.addLog(`[Emulator] Updated configuration for instance '${updated.name}' [Port: ${updated.adbPort}]`);
+    res.json({ success: true, emulator: updated });
+  });
+
   app.delete('/api/emulators/:id', (req, res) => {
     const id = req.params.id;
     storage.deleteEmulator(id);
@@ -191,6 +209,34 @@ async function startServer() {
       runtimeState.activeEmulator = null;
     }
     storage.addLog(`[Emulator] Removed emulator instance ID: ${id}`);
+    res.json({ success: true });
+  });
+
+  // Emulator Engine Presets API (Portable & User Manageable)
+  app.get('/api/emulator-engine-presets', (req, res) => {
+    res.json({ presets: storage.getEmulatorEnginePresets() });
+  });
+
+  app.post('/api/emulator-engine-presets', (req, res) => {
+    const { name, executablePath, adbPort, color, family } = req.body;
+    if (!name) return res.status(400).json({ error: 'Preset name required' });
+    const id = `ep_${Date.now()}`;
+    const newPreset = storage.saveEmulatorEnginePreset({
+      id,
+      name,
+      executablePath: executablePath || 'C:\\Program Files\\...',
+      adbPort: Number(adbPort) || 5555,
+      color: color || '#39ff14',
+      family: family || name,
+    });
+    storage.addLog(`[Emulator Presets] Created new portable engine preset: '${name}'`);
+    res.json({ success: true, preset: newPreset });
+  });
+
+  app.delete('/api/emulator-engine-presets/:id', (req, res) => {
+    const id = req.params.id;
+    storage.deleteEmulatorEnginePreset(id);
+    storage.addLog(`[Emulator Presets] Permanently deleted engine preset ID: ${id}`);
     res.json({ success: true });
   });
 
@@ -207,6 +253,14 @@ async function startServer() {
 
     const pid = Math.floor(2100 + Math.random() * 6800);
     emu.status = 'Running';
+    
+    // Auto-detect and store architecture / build telemetry on launch
+    if (!emu.version || emu.version.includes('Custom Build') || emu.version.includes('Auto-detect') || emu.version.trim() === '') {
+      const detectedVersion = `${emu.name.includes('MSI') ? 'BlueStacks v5.21 / ' : ''}x86_64 (64-Bit Android 11)`;
+      emu.version = detectedVersion;
+      storage.updateEmulator(emu.id, { version: detectedVersion });
+    }
+
     runtimeState.activeEmulator = {
       ...emu,
       pid,

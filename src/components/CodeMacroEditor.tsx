@@ -22,6 +22,7 @@ import {
   FolderPlus,
   FilePlus,
   Edit2,
+  Keyboard,
   X,
   Maximize2,
   Tv,
@@ -73,14 +74,7 @@ export const CodeMacroEditor: React.FC<CodeMacroEditorProps> = ({
   const [macroName, setMacroName] = useState<string>('');
   const [hotkey, setHotkey] = useState<string>('F6');
   const [category, setCategory] = useState<string>('combat');
-  const [categories, setCategories] = useState<string[]>([
-    'combat',
-    'recoil',
-    'movement',
-    'looting',
-    'sniper',
-    'utility',
-  ]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [newCatName, setNewCatName] = useState<string>('');
   const [isAddingCategoryModal, setIsAddingCategoryModal] = useState<boolean>(false);
 
@@ -157,6 +151,17 @@ export const CodeMacroEditor: React.FC<CodeMacroEditorProps> = ({
     }
   }, [activeMacro]);
 
+  // Dynamically derive categories from existing macros so they are not hardcoded
+  useEffect(() => {
+    if (macros && macros.length > 0) {
+      const existingCats = Array.from(new Set(macros.map((m) => m.category || 'combat')));
+      setCategories((prev) => {
+        const combined = Array.from(new Set([...prev, ...existingCats]));
+        return combined.filter(Boolean);
+      });
+    }
+  }, [macros]);
+
   // Pane Resize Drag Handler
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -229,17 +234,153 @@ export const CodeMacroEditor: React.FC<CodeMacroEditorProps> = ({
     showStatus(isBn ? 'ম্যাক্রো সেভ হয়েছে!' : 'Macro saved!');
   };
 
-  // Add category handler
-  const handleAddCategory = () => {
-    if (!newCatName.trim()) return;
-    const cat = newCatName.trim().toLowerCase();
-    if (!categories.includes(cat)) {
+  // Dynamic File Creation Modal State
+  const [isNewFileModalOpen, setIsNewFileModalOpen] = useState<boolean>(false);
+  const [newFileNameInput, setNewFileNameInput] = useState<string>('.aim');
+  const [newFileCategory, setNewFileCategory] = useState<string>('');
+  const newFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Hotkey Recorder Modal State
+  const [isRecordingHotkeyModal, setIsRecordingHotkeyModal] = useState<boolean>(false);
+
+  // Drag and Drop Zone State
+  const [isDragOver, setIsDragOver] = useState<boolean>(false);
+  const dropFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Open New File Modal with pre-filled cursor before .aim
+  const triggerOpenNewFileModal = (cat: string = '') => {
+    setNewFileCategory(cat);
+    setNewFileNameInput('Script_1.aim');
+    setIsNewFileModalOpen(true);
+    setTimeout(() => {
+      if (newFileInputRef.current) {
+        newFileInputRef.current.focus();
+        // Place cursor before extension '.aim'
+        const dotIdx = 'Script_1.aim'.lastIndexOf('.');
+        if (dotIdx > 0) {
+          newFileInputRef.current.setSelectionRange(0, dotIdx);
+        } else {
+          newFileInputRef.current.setSelectionRange(0, 0);
+        }
+      }
+    }, 100);
+  };
+
+  // Handle Creating New File from Modal
+  const handleConfirmCreateNewFile = () => {
+    let name = newFileNameInput.trim();
+    if (!name) name = 'Untitled.aim';
+
+    const targetCategory = newFileCategory.trim() || 'root';
+
+    // Ensure category exists if not root
+    if (targetCategory !== 'root' && !categories.includes(targetCategory)) {
+      setCategories((prev) => [...prev, targetCategory]);
+    }
+
+    const newM: MacroProfileItem = {
+      id: `macro_file_${Date.now()}`,
+      name: name,
+      category: targetCategory as any,
+      hotkey: 'F8',
+      isEnabled: true,
+      isExecuted: false,
+      tags: ['Custom'],
+      executionLayers: ['Macro Engine'],
+      descriptionEn: `Custom file ${name}`,
+      descriptionBn: `কাস্টম ফাইল ${name}`,
+      usageGuideEn: '',
+      usageGuideBn: '',
+      inGameSettingsEn: '',
+      inGameSettingsBn: '',
+      developerGuideEn: '',
+      developerGuideBn: '',
+      codeScript: name.endsWith('.json')
+        ? '{\n  "name": "Custom Macro",\n  "recoilY": 2.5\n}'
+        : name.endsWith('.js')
+        ? '// JavaScript OptiGamer Script\nconsole.log("Macro executing...");'
+        : `{\n  "name": "${name.replace(/\.[^/.]+$/, "")}",\n  "recoilY": 2.5\n}`,
+    };
+
+    onCreateNewMacro(newM);
+    if (!openTabIds.includes(newM.id)) {
+      setOpenTabIds((prev) => [...prev, newM.id]);
+    }
+    onSelectMacro(newM.id);
+    setIsNewFileModalOpen(false);
+    showStatus(isBn ? `ফাইল "${name}" সফলভাবে তৈরি হয়েছে!` : `File "${name}" created successfully!`);
+  };
+
+  // Handle Drag & Drop Local Files from Computer
+  const handleDropLocalFile = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      readAndOpenLocalFile(file);
+    }
+  };
+
+  // Confirm Add Category Folder
+  const handleConfirmAddCategory = () => {
+    const cat = newCatName.trim();
+    if (cat && !categories.includes(cat)) {
       setCategories((prev) => [...prev, cat]);
-      setCategory(cat);
+      showStatus(isBn ? `ফোল্ডার "${cat}" তৈরি হয়েছে!` : `Folder "${cat}" created!`);
     }
     setNewCatName('');
     setIsAddingCategoryModal(false);
-    showStatus(isBn ? `নতুন ক্যাটাগরি '${cat}' যুক্ত হয়েছে!` : `Category '${cat}' added!`);
+  };
+
+  const readAndOpenLocalFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = (event.target?.result as string) || '';
+      const newM: MacroProfileItem = {
+        id: `local_file_${Date.now()}`,
+        name: file.name,
+        category: 'root' as any,
+        hotkey: 'F8',
+        isEnabled: true,
+        isExecuted: false,
+        tags: ['Local', 'Imported'],
+        executionLayers: ['Local File IO'],
+        descriptionEn: `Local file ${file.name} loaded from computer`,
+        descriptionBn: `কম্পিউটার থেকে লোড হওয়া ফাইল ${file.name}`,
+        usageGuideEn: '',
+        usageGuideBn: '',
+        inGameSettingsEn: '',
+        inGameSettingsBn: '',
+        developerGuideEn: '',
+        developerGuideBn: '',
+        codeScript: content,
+      };
+
+      onCreateNewMacro(newM);
+      if (!openTabIds.includes(newM.id)) {
+        setOpenTabIds((prev) => [...prev, newM.id]);
+      }
+      onSelectMacro(newM.id);
+      showStatus(isBn ? `ফাইল "${file.name}" পিসি থেকে লোড হয়েছে!` : `Local file "${file.name}" opened!`);
+    };
+    reader.readAsText(file);
+  };
+
+  // Direct Computer Download / Save As Handler
+  const handleSaveAsComputer = () => {
+    if (!activeMacro) return;
+    const filename = activeMacro.name || 'macro_script.aim';
+    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showStatus(isBn ? `ফাইলটি কম্পিউটারে "${filename}" নামে সেভ হয়েছে!` : `Saved directly to computer as "${filename}"!`);
   };
 
   // Export edited script to Macro Library as new macro card
@@ -349,30 +490,9 @@ export const CodeMacroEditor: React.FC<CodeMacroEditorProps> = ({
 
             <div className="flex items-center space-x-1">
               <button
-                onClick={() => {
-                  const newM: MacroProfileItem = {
-                    id: `macro_file_${Date.now()}`,
-                    name: `Script_${macros.length + 1}.aim`,
-                    category: 'combat',
-                    hotkey: 'F8',
-                    isEnabled: true,
-                    isExecuted: false,
-                    tags: ['Custom'],
-                    executionLayers: ['DirectInput Pipe'],
-                    descriptionEn: 'New custom macro file',
-                    descriptionBn: 'নতুন কাস্টম ম্যাক্রো ফাইল',
-                    usageGuideEn: '',
-                    usageGuideBn: '',
-                    inGameSettingsEn: '',
-                    inGameSettingsBn: '',
-                    developerGuideEn: '',
-                    developerGuideBn: '',
-                    codeScript: '{\n  "name": "New Macro",\n  "recoilY": 2.5\n}',
-                  };
-                  onCreateNewMacro(newM);
-                }}
+                onClick={() => triggerOpenNewFileModal('')}
                 className="p-1 rounded text-[#8892b0] hover:text-[#39ff14] hover:bg-[#1a202c] cursor-pointer"
-                title="New File"
+                title="New File..."
               >
                 <FilePlus className="w-3.5 h-3.5" />
               </button>
@@ -534,58 +654,140 @@ export const CodeMacroEditor: React.FC<CodeMacroEditorProps> = ({
           </div>
 
           {/* EDITOR TOOLBAR */}
-          <div className="px-4 py-2 bg-[#141522] border-b border-[#1f2133] flex flex-wrap items-center justify-between gap-3 shrink-0">
-            <div className="flex items-center space-x-3">
-              <input
-                type="text"
-                value={macroName}
-                onChange={(e) => setMacroName(e.target.value)}
-                className="h-8 px-2.5 rounded-lg bg-[#0a0b10] text-white text-xs font-bold border border-[#26283d] outline-none focus:border-[#39ff14]"
-              />
+          {openTabIds.length > 0 && activeMacro && (
+            <div className="px-4 py-2 bg-[#141522] border-b border-[#1f2133] flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center space-x-3">
+                <input
+                  type="text"
+                  value={macroName}
+                  onChange={(e) => setMacroName(e.target.value)}
+                  className="h-8 px-2.5 rounded-lg bg-[#0a0b10] text-white text-xs font-bold border border-[#26283d] outline-none focus:border-[#39ff14]"
+                />
 
-              {/* Category Select */}
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="h-8 px-2 rounded-lg bg-[#0a0b10] text-[#00e5ff] text-xs font-mono border border-[#26283d] outline-none"
-              >
-                {categories.map((c) => (
-                  <option key={c} value={c} className="bg-[#0f1017] text-white">
-                    {c.toUpperCase()}
-                  </option>
-                ))}
-              </select>
+                {/* Category Select */}
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="h-8 px-2 rounded-lg bg-[#0a0b10] text-[#00e5ff] text-xs font-mono border border-[#26283d] outline-none"
+                >
+                  {categories.map((c) => (
+                    <option key={c} value={c} className="bg-[#0f1017] text-white">
+                      {c.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
 
-              {/* Hotkey Input */}
-              <input
-                type="text"
-                value={hotkey}
-                onChange={(e) => setHotkey(e.target.value.toUpperCase())}
-                className="h-8 w-16 px-1.5 rounded-lg bg-[#0a0b10] text-[#ffd600] text-xs font-mono font-bold border border-[#26283d] text-center uppercase"
-                placeholder="F6"
-              />
+                {/* Hotkey Input & Interactive Set Hotkey Button */}
+                <div className="flex items-center space-x-1">
+                  <input
+                    type="text"
+                    value={hotkey}
+                    onChange={(e) => setHotkey(e.target.value.toUpperCase())}
+                    className="h-8 w-16 px-1.5 rounded-lg bg-[#0a0b10] text-[#ffd600] text-xs font-mono font-bold border border-[#26283d] text-center uppercase"
+                    placeholder="F8"
+                  />
+                  <button
+                    onClick={() => setIsRecordingHotkeyModal(true)}
+                    className="h-8 px-2 rounded-lg bg-[#1a1c29] hover:bg-[#25283d] text-[#ffd600] border border-[#ffd600]/40 text-[10px] font-bold"
+                    title="Press key on keyboard to set hotkey"
+                  >
+                    Set Key
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleFormatJson}
+                  className="h-8 px-3 rounded-lg bg-[#1b1d2e] hover:bg-[#262940] text-[#8892b0] hover:text-white text-xs font-bold border border-[#2a2d45]"
+                >
+                  Format JSON
+                </button>
+
+                {/* Direct PC Save As Button */}
+                <button
+                  onClick={handleSaveAsComputer}
+                  className="h-8 px-3 rounded-lg bg-[#14232b] hover:bg-[#1a323d] text-[#00e5ff] border border-[#00e5ff]/50 font-bold text-xs flex items-center space-x-1 cursor-pointer"
+                  title="Save/Download directly to computer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Save As</span>
+                </button>
+
+                <button
+                  onClick={handleSave}
+                  className="h-8 px-4 rounded-lg bg-[#162b16] hover:bg-[#1f3f1f] text-[#39ff14] border border-[#39ff14] font-black text-xs flex items-center space-x-1.5 cursor-pointer shadow-[0_0_10px_rgba(57,255,20,0.2)]"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Save</span>
+                </button>
+              </div>
             </div>
+          )}
 
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleFormatJson}
-                className="h-8 px-3 rounded-lg bg-[#1b1d2e] hover:bg-[#262940] text-[#8892b0] hover:text-white text-xs font-bold border border-[#2a2d45]"
-              >
-                Format JSON
-              </button>
+          {/* NO FILE OPEN SCREEN WITH DRAG & DROP ZONE OR ACTIVE EDITOR PANE */}
+          {openTabIds.length === 0 || !activeMacro ? (
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragOver(true);
+              }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={handleDropLocalFile}
+              className={`flex-1 flex flex-col items-center justify-center p-8 transition-all ${
+                isDragOver ? 'bg-[#122415] border-2 border-dashed border-[#39ff14]' : 'bg-[#090a10]'
+              }`}
+            >
+              <div className="w-full max-w-md p-8 rounded-3xl bg-[#0f111c] border-2 border-[#1f2238] shadow-2xl flex flex-col items-center text-center space-y-5 relative overflow-hidden">
+                <div className="w-16 h-16 rounded-2xl bg-[#00e5ff]/10 border border-[#00e5ff]/40 flex items-center justify-center text-[#00e5ff] shadow-[0_0_20px_rgba(0,229,255,0.2)]">
+                  <Upload className="w-8 h-8 animate-bounce" />
+                </div>
 
-              <button
-                onClick={handleSave}
-                className="h-8 px-4 rounded-lg bg-[#162b16] hover:bg-[#1f3f1f] text-[#39ff14] border border-[#39ff14] font-black text-xs flex items-center space-x-1.5 cursor-pointer shadow-[0_0_10px_rgba(57,255,20,0.2)]"
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>Save</span>
-              </button>
+                <div>
+                  <h3 className="text-base font-black text-white tracking-wide">
+                    {isBn ? 'কোনো ফাইল ওপেন নেই' : 'No File Open'}
+                  </h3>
+                  <p className="text-xs text-[#8892b0] mt-1.5 leading-relaxed">
+                    {isBn
+                      ? 'আপনার কম্পিউটার থেকে যেকোনো .aim, .json, .txt বা কোড ফাইল এখানে ড্রাগ অ্যান্ড ড্রপ করুন অথবা নতুন ফাইল তৈরি করুন।'
+                      : 'Drag & Drop any .aim, .json, or script file here from your computer to view, edit, and save.'}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full pt-2">
+                  <button
+                    onClick={() => dropFileInputRef.current?.click()}
+                    className="w-full sm:flex-1 h-10 px-4 rounded-xl bg-[#00e5ff] text-black font-black text-xs flex items-center justify-center space-x-2 shadow-[0_0_15px_rgba(0,229,255,0.3)] cursor-pointer hover:scale-105 transition-all"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>{isBn ? 'পিসি থেকে ফাইল খুলুন' : 'Open Local File'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => triggerOpenNewFileModal('')}
+                    className="w-full sm:flex-1 h-10 px-4 rounded-xl bg-[#162b16] hover:bg-[#1f3f1f] text-[#39ff14] border border-[#39ff14] font-black text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all"
+                  >
+                    <FilePlus className="w-4 h-4" />
+                    <span>{isBn ? 'নতুন ফাইল তৈরি' : 'Create New File'}</span>
+                  </button>
+
+                  <input
+                    ref={dropFileInputRef}
+                    type="file"
+                    accept=".aim,.json,.txt,.js,.html,.css"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        readAndOpenLocalFile(e.target.files[0]);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-
-          {/* MAIN CODE EDIT AREA + DUAL SIMULATION TEST CONSOLE */}
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-0">
+          ) : (
+            /* MAIN CODE EDIT AREA + DUAL SIMULATION TEST CONSOLE */
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-0">
             {/* TEXTAREA CODE EDITOR (7 COLS) */}
             <div className="lg:col-span-7 p-3 bg-[#0a0b10] font-mono text-xs flex flex-col relative overflow-hidden">
               <textarea
@@ -649,7 +851,13 @@ export const CodeMacroEditor: React.FC<CodeMacroEditorProps> = ({
                   /* VISUAL GRAPHIC SIMULATION CANVAS */
                   <div className="h-44 rounded-xl bg-[#06070a] border border-[#1a1c2b] relative overflow-hidden flex items-center justify-center">
                     {/* Simulated Target Grid */}
-                    <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:12px_12px] opacity-40" />
+                    <div
+                      className="absolute inset-0 opacity-40"
+                      style={{
+                        backgroundImage: 'radial-gradient(#1e293b 1px, transparent 1px)',
+                        backgroundSize: '12px 12px',
+                      }}
+                    />
 
                     {/* Target Crosshair Circle */}
                     <div className="w-12 h-12 rounded-full border border-[#00e5ff]/40 flex items-center justify-center relative">
@@ -704,6 +912,7 @@ export const CodeMacroEditor: React.FC<CodeMacroEditorProps> = ({
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
 
@@ -732,7 +941,7 @@ export const CodeMacroEditor: React.FC<CodeMacroEditorProps> = ({
                 Cancel
               </button>
               <button
-                onClick={handleAddCategory}
+                onClick={handleConfirmAddCategory}
                 className="px-4 py-1.5 rounded-lg bg-[#00e5ff] text-black font-black text-xs cursor-pointer"
               >
                 Add Folder
@@ -824,27 +1033,9 @@ export const CodeMacroEditor: React.FC<CodeMacroEditorProps> = ({
             <>
               <button
                 onClick={() => {
+                  const targetCat = contextMenu.targetCategory || '';
                   setContextMenu(null);
-                  const newM: MacroProfileItem = {
-                    id: `macro_file_${Date.now()}`,
-                    name: `Script_${macros.length + 1}.aim`,
-                    category: (contextMenu.targetCategory || category) as any,
-                    hotkey: 'F8',
-                    isEnabled: true,
-                    isExecuted: false,
-                    tags: ['Custom'],
-                    executionLayers: ['Macro Engine'],
-                    descriptionEn: 'New custom macro file',
-                    descriptionBn: 'নতুন কাস্টম ম্যাক্রো ফাইল',
-                    usageGuideEn: '',
-                    usageGuideBn: '',
-                    inGameSettingsEn: '',
-                    inGameSettingsBn: '',
-                    developerGuideEn: '',
-                    developerGuideBn: '',
-                    codeScript: '{\n  "name": "New Script",\n  "recoilY": 2.0\n}',
-                  };
-                  onCreateNewMacro(newM);
+                  triggerOpenNewFileModal(targetCat);
                 }}
                 className="w-full px-2.5 py-1.5 rounded hover:bg-[#1a1c2e] hover:text-[#00e5ff] flex items-center justify-between transition-colors cursor-pointer"
               >
@@ -962,6 +1153,96 @@ export const CodeMacroEditor: React.FC<CodeMacroEditorProps> = ({
               </button>
             </>
           )}
+        </div>
+      )}
+      {/* NEW FILE NAMING MODAL WITH CURSOR PRE-POSITIONED BEFORE .aim */}
+      {isNewFileModalOpen && (
+        <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-[#0f1017] border-2 border-[#39ff14] p-5 space-y-4 shadow-2xl animate-in zoom-in-95">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <FilePlus className="w-4 h-4 text-[#39ff14]" />
+              <span>{isBn ? 'নতুন ফাইল তৈরি করুন' : 'Create New File'}</span>
+            </h3>
+
+            <div>
+              <label className="text-[10px] font-mono text-[#8892b0] block mb-1">
+                {isBn ? 'ফাইল নাম ও এক্সটেনশন (.aim, .json, .js, .txt):' : 'File Name & Extension:'}
+              </label>
+              <input
+                ref={newFileInputRef}
+                type="text"
+                value={newFileNameInput}
+                onChange={(e) => setNewFileNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleConfirmCreateNewFile();
+                }}
+                className="w-full h-10 px-3 rounded-xl bg-[#161824] text-white font-mono text-xs border border-[#2e3146] outline-none focus:border-[#39ff14]"
+              />
+            </div>
+
+            {newFileCategory && (
+              <div className="text-[10px] font-mono text-[#00e5ff] flex items-center gap-1">
+                <Folder className="w-3 h-3" />
+                <span>Target Folder: {newFileCategory.toUpperCase()}</span>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                onClick={() => setIsNewFileModalOpen(false)}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-[#8892b0] hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmCreateNewFile}
+                className="px-4 py-1.5 rounded-lg bg-[#39ff14] text-black font-black text-xs cursor-pointer shadow-[0_0_10px_rgba(57,255,20,0.3)]"
+              >
+                Create File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INTERACTIVE HOTKEY LISTENER MODAL */}
+      {isRecordingHotkeyModal && (
+        <div
+          tabIndex={0}
+          onKeyDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            let key = e.key.toUpperCase();
+            if (key === ' ') key = 'SPACE';
+            if (key === 'ESCAPE') key = 'ESC';
+            setHotkey(key);
+            setIsRecordingHotkeyModal(false);
+            showStatus(isBn ? `নতুন হট-কি [ ${key} ] সেট হয়েছে!` : `Hotkey set to [ ${key} ]!`);
+          }}
+          className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 outline-none"
+          autoFocus
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-[#0e101a] border-2 border-[#ffd600] p-6 text-center space-y-4 shadow-2xl animate-pulse">
+            <div className="w-12 h-12 rounded-full bg-[#ffd600]/10 border border-[#ffd600]/50 flex items-center justify-center mx-auto text-[#ffd600]">
+              <Keyboard className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-white">
+                {isBn ? 'কীবোর্ডের যেকোনো কী চাপুন...' : 'Press Any Key on Keyboard...'}
+              </h3>
+              <p className="text-xs text-[#8892b0] mt-1 font-mono">
+                {isBn
+                  ? 'উদা: F6, F8, NumPad1, Ctrl, Space ইত্যাদি'
+                  : 'Example: F6, F8, NumPad1, Space, etc.'}
+              </p>
+            </div>
+            <button
+              onClick={() => setIsRecordingHotkeyModal(false)}
+              className="px-4 py-1.5 rounded-lg bg-[#1a1c29] text-[#8892b0] hover:text-white text-xs font-bold"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>

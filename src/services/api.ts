@@ -103,8 +103,39 @@ export const api = {
     return res.json();
   },
 
+  async updateEmulator(id: string, data: Partial<InstalledEmulatorInfo>): Promise<{ success: boolean; emulator: InstalledEmulatorInfo }> {
+    const res = await fetch(`${API_BASE}/emulators/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
   async deleteEmulator(id: string): Promise<{ success: boolean }> {
     const res = await fetch(`${API_BASE}/emulators/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    return res.json();
+  },
+
+  // Emulator Engine Presets (Portable)
+  async getEmulatorEnginePresets(): Promise<{ presets: Array<{ id: string; name: string; executablePath: string; adbPort: number; color: string; family: string }> }> {
+    const res = await fetch(`${API_BASE}/emulator-engine-presets`);
+    return res.json();
+  },
+
+  async addEmulatorEnginePreset(preset: { name: string; executablePath: string; adbPort: number; color?: string; family?: string }) {
+    const res = await fetch(`${API_BASE}/emulator-engine-presets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(preset),
+    });
+    return res.json();
+  },
+
+  async deleteEmulatorEnginePreset(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/emulator-engine-presets/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
     return res.json();

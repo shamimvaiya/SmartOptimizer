@@ -24,6 +24,7 @@ import {
   Zap,
   Boxes,
   MoveDown,
+  ChevronLeft,
   ChevronRight,
   Terminal,
   Cpu,
@@ -167,52 +168,7 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
     onExportToLibrary('Visual Graph Macro', graphData);
   };
 
-  const [nodes, setNodes] = useState<MacroNode[]>(
-    initialGraph.length > 0
-      ? initialGraph
-      : [
-          {
-            id: 'node_1',
-            actionType: 'Event (Start)',
-            parameters: 'OnStart',
-            positionX: 80,
-            positionY: 80,
-            nextNodes: ['node_2'],
-          },
-          {
-            id: 'node_2',
-            actionType: 'Search Color',
-            parameters: '860, 440, 200, 200, #39FF14',
-            positionX: 360,
-            positionY: 80,
-            nextNodes: ['node_3'],
-          },
-          {
-            id: 'node_3',
-            actionType: 'Move Mouse',
-            parameters: '960, 540, true',
-            positionX: 640,
-            positionY: 80,
-            nextNodes: ['node_4'],
-          },
-          {
-            id: 'node_4',
-            actionType: 'Click Mouse',
-            parameters: 'left',
-            positionX: 920,
-            positionY: 80,
-            nextNodes: ['node_5'],
-          },
-          {
-            id: 'node_5',
-            actionType: 'Delay',
-            parameters: '50',
-            positionX: 1200,
-            positionY: 80,
-            nextNodes: [],
-          },
-        ]
-  );
+  const [nodes, setNodes] = useState<MacroNode[]>(() => initialGraph || []);
 
   // Variables and Groups
   const [variables, setVariables] = useState<MacroVariable[]>([
@@ -271,6 +227,20 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // Action Nodes Horizontal Slider Ref for Isolated Scroll
   const actionNodesScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Smooth horizontal scroll with mouse wheel for quick actions
+  useEffect(() => {
+    const el = actionNodesScrollRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
 
   // Custom Actions Registry (Action Crafter)
   const [customActions, setCustomActions] = useState<CustomActionDefinition[]>([]);
@@ -402,9 +372,7 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
 
   // Sync graph updates when initialGraph changes
   useEffect(() => {
-    if (initialGraph && initialGraph.length > 0) {
-      setNodes(initialGraph);
-    }
+    setNodes(initialGraph || []);
   }, [initialGraph]);
 
   // Push to Undo history
@@ -1158,25 +1126,6 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
             </button>
           )}
 
-          {/* Run / Stop Execution Button */}
-          {isMacroRunning ? (
-            <button
-              onClick={() => onStopMacro()}
-              className="h-9 px-4 rounded-xl bg-[#ff0055] hover:bg-[#d60047] text-white font-extrabold text-xs flex items-center space-x-1.5 cursor-pointer shadow-[0_0_15px_rgba(255,0,85,0.4)] transition-all"
-            >
-              <Square className="w-4 h-4 fill-current" />
-              <span>{t.stopExecution}</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleRunExecution}
-              className="h-9 px-4 rounded-xl bg-[#39ff14] hover:bg-[#32e012] text-black font-extrabold text-xs flex items-center space-x-1.5 cursor-pointer shadow-[0_0_15px_rgba(57,255,20,0.4)] transition-all hover:scale-105"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              <span>{workspaceMode === 'nodeGraph' ? t.runMacro : 'Run Execution'}</span>
-            </button>
-          )}
-
           {/* Save Graph */}
           {workspaceMode === 'nodeGraph' && (
             <button
@@ -1187,14 +1136,26 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
               <span>{savedFeedback ? (isBn ? 'সেভ হয়েছে!' : 'Saved!') : t.saveGraph}</span>
             </button>
           )}
+
+          {/* Clear Graph */}
+          {workspaceMode === 'nodeGraph' && nodes.length > 0 && (
+            <button
+              onClick={() => setIsClearConfirmOpen(true)}
+              className="h-9 px-2.5 rounded-xl bg-[#2a1318] hover:bg-[#3d1820] text-[#ff4444] border border-[#ff4444]/40 font-bold text-xs flex items-center space-x-1 cursor-pointer transition-all shadow-[0_0_8px_rgba(255,68,68,0.2)]"
+              title="Clear All Nodes from Graph"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{isBn ? 'ক্লিয়ার করুন' : 'Clear'}</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Node Graph Secondary Toolbar */}
       {workspaceMode === 'nodeGraph' && (
-        <div className="bg-[#0e1017] rounded-2xl p-3 border border-[#1f283d] shadow-lg flex items-center justify-between gap-3 flex-wrap">
-          {/* Left: Add Block & Palette */}
-          <div className="flex items-center space-x-2 min-w-0">
+        <div className="bg-[#0e1017] rounded-2xl p-2.5 border border-[#1f283d] shadow-lg flex items-center justify-between gap-3">
+          {/* Left: Add Block & Full-Width Quick Actions Palette */}
+          <div className="flex-1 flex items-center space-x-2 min-w-0">
             <button
               onClick={() => setIsBlockLibraryOpen(true)}
               className="h-8 px-3 rounded-xl bg-[#00e5ff] hover:bg-[#33ebff] text-black font-black text-xs flex items-center space-x-1.5 shrink-0 transition-all cursor-pointer shadow-[0_0_12px_rgba(0,229,255,0.3)] hover:scale-105"
@@ -1203,10 +1164,23 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
               <span>{t.actionLibrary}</span>
             </button>
 
-            {/* Horizontal Scroll Palette */}
+            {/* Scroll Left Button */}
+            <button
+              onClick={() => {
+                if (actionNodesScrollRef.current) {
+                  actionNodesScrollRef.current.scrollBy({ left: -220, behavior: 'smooth' });
+                }
+              }}
+              className="p-1 rounded-lg text-[#8892b0] hover:text-[#00e5ff] hover:bg-[#1f283d] transition-all cursor-pointer shrink-0 hidden sm:flex"
+              title="Scroll Left"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {/* Horizontal Scroll Palette (Fills all remaining empty space) */}
             <div
               ref={actionNodesScrollRef}
-              className="flex items-center space-x-2 overflow-x-auto py-1 px-1 overscroll-contain scrollbar-none select-none max-w-[320px] sm:max-w-[420px] lg:max-w-[550px]"
+              className="flex-1 flex items-center space-x-2 overflow-x-auto py-1 px-1 overscroll-contain no-scrollbar scrollbar-none select-none min-w-0 scroll-smooth"
             >
               {[
                 { name: 'Search Color', color: '#39ff14', icon: Eye },
@@ -1218,6 +1192,11 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
                 { name: 'Set Variable', color: '#a855f7', icon: Variable },
                 { name: 'Repeat Loop', color: '#ff007f', icon: Repeat },
                 { name: 'ADB Tap', color: '#00e676', icon: Smartphone },
+                ...customActions.map((ca) => ({
+                  name: ca.name,
+                  color: ca.color || '#00e5ff',
+                  icon: Zap,
+                })),
               ].map((act) => {
                 const IconComp = act.icon;
                 return (
@@ -1236,7 +1215,7 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
                       })
                     }
                     style={{ borderColor: `${act.color}60` }}
-                    className="h-8 px-2.5 rounded-xl bg-[#141824] hover:bg-[#1f283d] text-white font-bold text-xs flex items-center space-x-1.5 shrink-0 transition-all border cursor-pointer hover:scale-105"
+                    className="h-8 px-2.5 rounded-xl bg-[#141824] hover:bg-[#1f283d] text-white font-bold text-xs flex items-center space-x-1.5 shrink-0 transition-all border cursor-pointer hover:scale-105 whitespace-nowrap"
                   >
                     <IconComp className="w-3.5 h-3.5" style={{ color: act.color }} />
                     <span>+ {act.name}</span>
@@ -1244,6 +1223,19 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
                 );
               })}
             </div>
+
+            {/* Scroll Right Button */}
+            <button
+              onClick={() => {
+                if (actionNodesScrollRef.current) {
+                  actionNodesScrollRef.current.scrollBy({ left: 220, behavior: 'smooth' });
+                }
+              }}
+              className="p-1 rounded-lg text-[#8892b0] hover:text-[#00e5ff] hover:bg-[#1f283d] transition-all cursor-pointer shrink-0 hidden sm:flex"
+              title="Scroll Right"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Center / Right: DAG Auto-Arrange, Zoom-to-fit, Alignment & View Tools */}
@@ -1876,19 +1868,30 @@ export const VisualMacroStudio: React.FC<VisualMacroStudioProps> = ({
         </div>
       )}
 
-      {/* ADD TO MACRO LIBRARY BUTTON */}
-      {onExportToLibrary && (
-        <div className="mt-3">
-          <button
-            id="btn-visual-add-to-library"
-            onClick={handleExportToLibrary}
-            className="w-full h-12 rounded-xl bg-[#162b16] hover:bg-[#1f3f1f] text-[#39ff14] border-2 border-[#39ff14] font-black text-xs flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(57,255,20,0.3)] cursor-pointer transition-all hover:scale-[1.01]"
-          >
-            <Plus className="w-5 h-5 stroke-[3]" />
-            <span>{isBn ? '➕ ম্যাক্রো লাইব্রেরিতে যুক্ত করুন' : '➕ Add to Macro Library'}</span>
-          </button>
-        </div>
-      )}
+      {/* Clear Graph Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isClearConfirmOpen}
+        title={isBn ? 'গ্রাফ সম্পূর্ণ মুছে ফেলতে চান?' : 'Clear All Graph Nodes?'}
+        message={
+          isBn
+            ? 'আপনি কি নিশ্চিত যে ক্যানভাসের সমস্ত নোড মুছে ফেলতে চান? ক্যানভাসটি সম্পূর্ণ পরিষ্কার হয়ে যাবে।'
+            : 'Are you sure you want to clear all nodes on canvas? This will make the canvas completely empty.'
+        }
+        type="danger"
+        confirmText={isBn ? 'হ্যাঁ, ক্লিয়ার করুন' : 'Yes, Clear All'}
+        cancelText={isBn ? 'বাতিল' : 'Cancel'}
+        onConfirm={async () => {
+          pushHistory(nodes);
+          setNodes([]);
+          setSelectedNodeIds(new Set());
+          setGroups([]);
+          setIsClearConfirmOpen(false);
+          await onSaveGraph([]);
+          setInspectorToast(isBn ? 'গ্রাফ ক্লিয়ার ও সেভ হয়েছে!' : 'Graph cleared and saved!');
+          setTimeout(() => setInspectorToast(null), 2000);
+        }}
+        onCancel={() => setIsClearConfirmOpen(false)}
+      />
 
       {/* Preset Macro Templates Library Modal */}
       <MacroTemplatesModal

@@ -277,14 +277,14 @@ export const BlockCodingPalette: React.FC<BlockCodingPaletteProps> = ({
 
         {/* Scrollable Block List */}
         <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
-          {filteredBlocks.map((proto) => {
+          {filteredBlocks.map((proto, idx) => {
             const theme = SCRATCH_PALETTE[proto.category] || { bg: proto.color || '#4C97FF', border: '#3373CC' };
             const isReporter = proto.category === 'variables' && proto.type === 'var_get';
             const isHat = proto.category === 'events' || proto.type === 'custom_block_definition';
 
             return (
               <div
-                key={`${proto.category}_${proto.type}_${proto.title}`}
+                key={`${proto.category}_${proto.type}_${proto.title}_${idx}`}
                 draggable
                 onDragStart={(e) => handleDragStart(e, proto)}
                 onClick={() => {

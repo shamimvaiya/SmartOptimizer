@@ -33,6 +33,7 @@ export const App: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [isOverlayOpen, setIsOverlayOpen] = useState<boolean>(true);
   const [isAddEmulatorOpen, setIsAddEmulatorOpen] = useState<boolean>(false);
+  const [editingEmulator, setEditingEmulator] = useState<InstalledEmulatorInfo | null>(null);
   const [isPresetModalOpen, setIsPresetModalOpen] = useState<boolean>(false);
   const [isMacroRunning, setIsMacroRunning] = useState<boolean>(false);
   const [isSnipperOpen, setIsSnipperOpen] = useState<boolean>(false);
@@ -161,14 +162,15 @@ export const App: React.FC = () => {
 
       if (pressedKey === currentCrosshairHotkey) {
         e.preventDefault();
+        const nextState = !crosshairConfig.isActivatedToEmulator;
         const updated = {
           ...crosshairConfig,
-          isEnabled: !crosshairConfig.isEnabled,
+          isActivatedToEmulator: nextState,
         };
         handleUpdateCrosshairConfig(updated);
         handleAddLog(
-          `[Crosshair] Hotkey '${pressedKey}' pressed -> Crosshair ${
-            updated.isEnabled ? 'ENABLED' : 'DISABLED'
+          `[Crosshair Hotkey: ${pressedKey}] Screen Aim Reticle -> ${
+            nextState ? 'VISIBLE (ON)' : 'HIDDEN (OFF)'
           }`
         );
       }
@@ -314,6 +316,17 @@ export const App: React.FC = () => {
       await api.launchEmulator(selectedEmulatorId);
       const tel = await api.getTelemetry();
       setTelemetry(tel);
+
+      // Handle Crosshair Auto-Injection
+      if (crosshairConfig.isEnabled && crosshairConfig.autoInjectToEmulator !== false) {
+        if (!crosshairConfig.isActivatedToEmulator) {
+          const updated = { ...crosshairConfig, isActivatedToEmulator: true };
+          handleUpdateCrosshairConfig(updated);
+        }
+        handleAddLog(
+          `[Crosshair Engine] 🎯 Auto-injected reticle '${crosshairConfig.selectedDesignId}' into emulator viewport.`
+        );
+      }
     } catch (e) {
       console.error('Launch emulator error:', e);
     }
@@ -453,6 +466,82 @@ export const App: React.FC = () => {
     await handleSavePreset(updated);
   };
 
+  // SEO Export 1: Single Active Profile
+  const handleExportCurrentProfile = () => {
+    if (!activePreset) return;
+    const payload = {
+      type: 'AIMOPT_SINGLE_PROFILE_SEO',
+      version: '3.0',
+      exportedAt: new Date().toISOString(),
+      preset: activePreset,
+    };
+    const jsonStr = JSON.stringify(payload, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activePreset.name.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_profile.seo`;
+    a.click();
+    URL.revokeObjectURL(url);
+    handleAddLog(`[SEO Backup] Exported single profile '${activePreset.name}' to .SEO package.`);
+  };
+
+  // SEO Export 2: All Profiles & Full System Data
+  const handleExportAllProfiles = () => {
+    const payload = {
+      type: 'AIMOPT_ALL_PROFILES_SEO',
+      version: '3.0',
+      exportedAt: new Date().toISOString(),
+      presets: presets,
+      activePresetName: activePreset?.name || '',
+      globalConfig: globalConfig,
+    };
+    const jsonStr = JSON.stringify(payload, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `smartoptimizer_all_profiles_backup_${new Date().toISOString().slice(0, 10)}.seo`;
+    a.click();
+    URL.revokeObjectURL(url);
+    handleAddLog(`[SEO Backup] Exported entire dataset with ${presets.length} profiles to .SEO archive.`);
+  };
+
+  // SEO Universal Import / Restore
+  const handleImportSEOFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (data.type === 'AIMOPT_SINGLE_PROFILE_SEO' && data.preset) {
+        const p = data.preset as PresetProfile;
+        await handleSavePreset(p);
+        await handleSwitchPreset(p.name);
+        handleAddLog(`[SEO Restore] Successfully imported single profile '${p.name}' from .SEO file.`);
+      } else if (data.type === 'AIMOPT_ALL_PROFILES_SEO' && Array.isArray(data.presets)) {
+        for (const p of data.presets) {
+          await api.savePreset(p);
+        }
+        await loadInitialData();
+        if (data.activePresetName) {
+          await handleSwitchPreset(data.activePresetName);
+        }
+        handleAddLog(`[SEO Restore] Successfully restored all ${data.presets.length} profiles from .SEO backup.`);
+      } else if (data.name && data.performance) {
+        // Direct PresetProfile JSON
+        const p = data as PresetProfile;
+        await handleSavePreset(p);
+        await handleSwitchPreset(p.name);
+        handleAddLog(`[SEO Restore] Restored profile '${p.name}'.`);
+      } else {
+        handleAddLog('[SEO Restore] Unrecognized file structure. Could not restore.');
+      }
+    } catch (err) {
+      console.error('Import SEO failed:', err);
+      handleAddLog(`[SEO Restore Error] Failed to parse backup file: ${(err as any)?.message}`);
+    }
+  };
+
   const handleUpdateProcessOverride = async (processName: string) => {
     if (!activePreset) return;
     const updated = {
@@ -468,11 +557,32 @@ export const App: React.FC = () => {
     executablePath: string;
     adbPort: number;
     type: string;
+    version?: string;
   }) => {
     const res = await api.addCustomEmulator(data);
     if (res.emulator) {
       setEmulators((prev) => [...prev, res.emulator]);
       setSelectedEmulatorId(res.emulator.id);
+      handleAddLog(`[Emulator] Registered custom emulator instance: '${res.emulator.name}'`);
+    }
+  };
+
+  const handleOpenEditEmulator = (emu: InstalledEmulatorInfo) => {
+    setEditingEmulator(emu);
+    setIsAddEmulatorOpen(true);
+  };
+
+  const handleUpdateEmulator = async (id: string, data: Partial<InstalledEmulatorInfo>) => {
+    try {
+      const res = await api.updateEmulator(id, data);
+      if (res.emulator) {
+        setEmulators((prev) =>
+          prev.map((e) => (e.id === id ? { ...e, ...res.emulator } : e))
+        );
+        handleAddLog(`[Emulator] Successfully updated settings for '${res.emulator.name}'`);
+      }
+    } catch (err) {
+      console.error('Failed to update emulator:', err);
     }
   };
 
@@ -595,6 +705,7 @@ export const App: React.FC = () => {
                 }
               }}
               onDeleteEmulator={handleDeleteEmulator}
+              onEditEmulator={handleOpenEditEmulator}
               onTogglePinEmulator={handleTogglePinEmulator}
               lang={lang}
               activePreset={activePreset}
@@ -677,6 +788,12 @@ export const App: React.FC = () => {
           {currentPage === 'Macro' && (
             <MacroHubView
               isBn={lang === 'bn'}
+              activePreset={activePreset}
+              onSaveGraph={handleSaveGraph}
+              onLog={handleAddLog}
+              onRunMacro={handleRunMacro}
+              onStopMacro={handleStopMacro}
+              isMacroRunning={isMacroRunning}
               onExecuteToEmulator={(macro) => {
                 handleAddLog(`[Macro Engine] Injected & armed '${macro.name}' on key [${macro.hotkey}] in background emulator process.`);
               }}
@@ -694,6 +811,10 @@ export const App: React.FC = () => {
                 handleUpdateCrosshairConfig(updated);
               }}
               onToggleAutoHide={handleToggleAutoHide}
+              onSavePreset={handleSavePreset}
+              onExportCurrentProfile={handleExportCurrentProfile}
+              onExportAllProfiles={handleExportAllProfiles}
+              onImportSEOFile={handleImportSEOFile}
               onUpdateProcessOverride={handleUpdateProcessOverride}
               onCreatePresetModal={() => setIsPresetModalOpen(true)}
               onDuplicatePreset={handleDuplicatePreset}
@@ -761,11 +882,17 @@ export const App: React.FC = () => {
         isEmulatorRunning={telemetry?.isEmulatorRunning ?? false}
       />
 
-      {/* Add Emulator Modal */}
+      {/* Add / Edit Emulator Modal */}
       <AddEmulatorModal
         isOpen={isAddEmulatorOpen}
-        onClose={() => setIsAddEmulatorOpen(false)}
+        onClose={() => {
+          setIsAddEmulatorOpen(false);
+          setEditingEmulator(null);
+        }}
         onAdd={handleAddCustomEmulator}
+        onUpdate={handleUpdateEmulator}
+        initialData={editingEmulator}
+        isBn={lang === 'bn'}
       />
 
       {/* New Preset Profile Modal */}
